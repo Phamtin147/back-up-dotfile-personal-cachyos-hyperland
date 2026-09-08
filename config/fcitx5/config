@@ -17,9 +17,15 @@ ModifierOnlyKeyTimeout=250
 
 [Hotkey/ActivateKeys]
 0=Hangul_Hanja
+1=Hiragana_Katakana
+2=Henkan
+3=Kana_Shift
 
 [Hotkey/DeactivateKeys]
 0=Hangul_Romaja
+1=Eisu_toggle
+2=Muhenkan
+3=Eisu_Shift
 
 [Hotkey/AltTriggerKeys]
 0=Shift_L
