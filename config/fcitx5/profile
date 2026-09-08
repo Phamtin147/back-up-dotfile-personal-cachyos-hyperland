@@ -2,21 +2,27 @@
 # Group Name
 Name=Default
 # Layout
-Default Layout=jp
+Default Layout=mac_us_jis
 # Default Input Method
 DefaultIM=bamboo
 
 [Groups/0/Items/0]
 # Name
-Name=keyboard-jp
+Name=keyboard-us
 # Layout
-Layout=
+Layout=mac_us_jis
 
 [Groups/0/Items/1]
 # Name
 Name=bamboo
 # Layout
-Layout=
+Layout=mac_us_jis
+
+[Groups/0/Items/2]
+# Name
+Name=mozc
+# Layout
+Layout=mac_us_jis
 
 [GroupOrder]
 0=Default

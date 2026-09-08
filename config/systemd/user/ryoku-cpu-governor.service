@@ -1,0 +1,13 @@
+[Unit]
+Description=Ryoku CPU Performance Governor Daemon
+After=graphical-session.target power-profiles-daemon.service
+Wants=power-profiles-daemon.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/ryoku-cpu-governor
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target graphical-session.target

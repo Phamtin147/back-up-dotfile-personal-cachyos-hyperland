@@ -15,6 +15,10 @@ ModifierOnlyKeyTimeout=250
 1=Zenkaku_Hankaku
 2=Hangul
 
+[Hotkey/EnumerateForwardKeys]
+0=Control+space
+1=Super+space
+
 [Hotkey/ActivateKeys]
 0=Hangul_Hanja
 1=Hiragana_Katakana

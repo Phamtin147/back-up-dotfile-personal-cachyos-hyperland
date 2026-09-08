@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Ryoku CPU Performance Daemon
+# Ensures CPU is never throttled to 800MHz power-saver mode
+
+set -euo pipefail
+
+apply_profile() {
+    local cur
+    cur=$(powerprofilesctl get 2>/dev/null || echo "")
+    
+    # Check if plugged in (charging / full) or on battery
+    local bat_state
+    bat_state=$(upower -i /org/freedesktop/UPower/devices/battery_BAT0 2>/dev/null | grep -E "state:\s+" | awk '{print $2}' || echo "unknown")
+    
+    if [[ "$bat_state" == "charging" || "$bat_state" == "fully-charged" ]]; then
+        # On AC Power -> Maximum Performance (Turbo 4.0 - 5.0 GHz)
+        if [[ "$cur" != "performance" ]]; then
+            powerprofilesctl set performance 2>/dev/null || true
+        fi
+    else
+        # On Battery -> Balanced mode (Smooth high clock 2.5 - 4.5 GHz, NEVER power-saver 800MHz)
+        if [[ "$cur" == "power-saver" ]]; then
+            powerprofilesctl set balanced 2>/dev/null || true
+        elif [[ -z "$cur" ]]; then
+            powerprofilesctl set performance 2>/dev/null || true
+        fi
+    fi
+}
+
+# Run immediately at startup
+apply_profile
+
+# Listen for AC / Battery events
+if command -v upower >/dev/null 2>&1; then
+    upower --monitor | while read -r line; do
+        if echo "$line" | grep -q -E "changed|battery|line_power"; then
+            sleep 1
+            apply_profile
+        fi
+    done
+else
+    while true; do
+        sleep 10
+        apply_profile
+    done
+fi

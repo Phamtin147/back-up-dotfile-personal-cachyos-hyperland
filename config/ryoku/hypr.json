@@ -151,7 +151,7 @@
     },
     "hyprscrolling": {
       "columnWidth": 0.5,
-      "followFocus": true
+      "followFocus": false
     }
   },
   "apps": {

@@ -10,8 +10,8 @@
 -- edit here and leave the settings keyboard layout at its default.
 hl.config({
     input = {
-        kb_layout = "jp",
-        kb_variant = "mac",
+        kb_layout = "mac_us_jis",
+        kb_variant = "",
         kb_model = "applealu_jis",
         kb_options = "",
     },

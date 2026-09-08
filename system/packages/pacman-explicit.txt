@@ -46,6 +46,7 @@ fcitx5
 fcitx5-bamboo
 fcitx5-configtool
 fcitx5-gtk
+fcitx5-mozc
 fcitx5-qt
 fd
 ffmpeg
