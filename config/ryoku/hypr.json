@@ -1,0 +1,163 @@
+{
+  "appearance": {
+    "gapsIn": 4,
+    "gapsOut": 4,
+    "borderSize": 1,
+    "rounding": 0,
+    "roundingPower": 4,
+    "activeOpacity": 1,
+    "inactiveOpacity": 1,
+    "dimInactive": false,
+    "dimStrength": 0.07,
+    "blurEnabled": true,
+    "blurSize": 6,
+    "blurPasses": 2,
+    "blurXray": true,
+    "blurVibrancy": 0.17,
+    "blurNoise": 0.01,
+    "shadowEnabled": false,
+    "shadowRange": 8,
+    "shadowPower": 2,
+    "glowEnabled": false,
+    "glowRange": 4,
+    "glowColor": "#ee33cc",
+    "animations": true,
+    "layout": "scrolling",
+    "activeBorder": "#e0563b",
+    "inactiveBorder": "#313a4d",
+    "resizeOnBorder": true,
+    "snapEnabled": false,
+    "wobblyWindows": false,
+    "windowStyle": "pop",
+    "animatedBorder": false,
+    "borderAngleSpeed": 5,
+    "fullscreenOpacity": 1,
+    "dimSpecial": 0.2,
+    "dimAround": 0.4,
+    "dimModal": true,
+    "borderPartOfWindow": false,
+    "blurContrast": 0.8916,
+    "blurBrightness": 1,
+    "blurSpecial": false,
+    "blurPopups": false,
+    "blurIgnoreOpacity": true,
+    "blurNewOptimizations": true,
+    "blurVibrancyDarkness": 0,
+    "shadowSharp": false,
+    "shadowScale": 1,
+    "shadowColor": "#000000",
+    "extendBorderGrab": 5,
+    "hoverIconOnBorder": true,
+    "noFocusFallback": false,
+    "resizeCorner": 0,
+    "gapsWorkspaces": 0
+  },
+  "dwindle": {
+    "preserveSplit": false,
+    "smartSplit": false,
+    "smartResizing": true,
+    "defaultSplitRatio": 1,
+    "forceSplit": "follow",
+    "useActiveForSplits": true
+  },
+  "master": {
+    "mfact": 0.55,
+    "newStatus": "slave",
+    "newOnTop": false,
+    "orientation": "left",
+    "smartResizing": true
+  },
+  "input": {
+    "kbLayout": "us",
+    "kbVariant": "",
+    "kbOptions": "",
+    "numlockByDefault": false,
+    "followMouse": 2,
+    "sensitivity": 0,
+    "accelProfile": "",
+    "leftHanded": false,
+    "mouseNaturalScroll": false,
+    "mouseScrollFactor": 1,
+    "middleClickPaste": true,
+    "naturalScroll": false,
+    "tapToClick": true,
+    "tapAndDrag": true,
+    "clickfinger": false,
+    "middleEmulation": false,
+    "touchScrollFactor": 1,
+    "disableWhileTyping": true,
+    "repeatRate": 25,
+    "repeatDelay": 600,
+    "workspaceSwipe": false,
+    "swipeFingers": 3,
+    "swipeInvert": true,
+    "swipeCreateNew": true,
+    "swipeDistance": 300
+  },
+  "cursor": {
+    "theme": "phinger-cursors-light",
+    "size": 25,
+    "inactiveTimeout": 0,
+    "hideOnKeyPress": true
+  },
+  "env": [],
+  "windowRules": [],
+  "autostart": [],
+  "keybinds": [],
+  "anim": {
+    "items": [],
+    "curves": []
+  },
+  "layerRules": [],
+  "appOverrides": [],
+  "plugins": {
+    "dynamicCursors": {
+      "enabled": false,
+      "mode": "tilt",
+      "shake": true,
+      "magnify": 4
+    },
+    "hyprbars": {
+      "enabled": false,
+      "height": 42,
+      "textSize": 11,
+      "blur": true,
+      "buttons": true
+    },
+    "imgborders": {
+      "enabled": false,
+      "image": "",
+      "sizes": "8,8,8,8",
+      "insets": "0,0,0,0",
+      "scale": 1,
+      "smooth": true,
+      "blur": false
+    },
+    "hyprglass": {
+      "enabled": false,
+      "preset": "glass",
+      "blurStrength": 2,
+      "opacity": 1,
+      "tint": "8899aa22",
+      "brightness": 1,
+      "theme": "dark"
+    },
+    "hyprfocus": {
+      "enabled": false,
+      "mode": "flash",
+      "opacity": 0.8,
+      "bounce": 0.95,
+      "slide": 20
+    },
+    "hyprscrolling": {
+      "columnWidth": 0.5,
+      "followFocus": true
+    }
+  },
+  "apps": {
+    "browser": "zen-browser",
+    "editor": "code",
+    "files": "kitty -e yazi",
+    "terminal": "kitty"
+  }
+}

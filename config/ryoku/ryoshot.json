@@ -1,0 +1,20 @@
+{
+  "blurRadius": 64,
+  "mosaicBlock": 12,
+  "zoomFactor": 2,
+  "copyOnSave": false,
+  "saveDir": "",
+  "toolStyle": {
+    "select": {
+      "color": "#a2d399",
+      "width": 7,
+      "filled": false
+    }
+  },
+  "lastSel": {
+    "x": 0,
+    "y": 0,
+    "w": 1535.9921875,
+    "h": 959.9921875
+  }
+}

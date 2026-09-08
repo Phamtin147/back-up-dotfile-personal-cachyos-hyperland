@@ -1,0 +1,137 @@
+/* Ryoku palette -> Obsidian. Rendered by matugen; do not edit. Linked into each
+   vault's snippets by ryoku doctor and enabled as the "ryoku" CSS snippet. */
+
+.theme-dark, .theme-light {
+
+    /* Material 3 RGB helpers */
+    --mat-bg-rgb:             255, 249, 231;
+    --mat-surface-rgb:        255, 249, 231;
+    --mat-on-surface-rgb:     30, 28, 14;
+    --mat-primary-rgb:        146, 73, 0;
+    --mat-on-primary-rgb:     255, 255, 255;
+
+    /* Core backgrounds */
+    --background-primary:           #fff9e7;
+    --background-primary-alt:       #dfd9c3;
+    --background-secondary:         #faf4dc;
+    --background-secondary-alt:     #f4eed6;
+
+    /* Titlebar */
+    --titlebar-background:          #dfd9c3;
+    --titlebar-background-focused:  #faf4dc;
+    --titlebar-text-color:          #1e1c0e;
+
+    /* Borders and dividers */
+    --background-modifier-border:         #cec7a3;
+    --background-modifier-border-focus:   #7d7858;
+    --background-modifier-border-hover:   #7d7858;
+
+    /* Text colors */
+    --text-normal:      #1e1c0e;
+    --text-muted:       #4b472b;
+    --text-faint:       #7d7858;
+    --text-on-accent:   #ffffff;
+    --text-selection:   rgba(146, 73, 0, 0.25);
+
+    /* Accent and interactive */
+    --interactive-accent:           #924900;
+    --interactive-accent-hover:     #ffdcc5;
+    --interactive-accent-rgb:       146, 73, 0;
+    --text-accent:                  #924900;
+    --text-accent-hover:            #ffdcc5;
+
+    /* Hover and active modifiers */
+    --background-modifier-hover:          rgba(var(--mat-on-surface-rgb), 0.06);
+    --background-modifier-active-hover:   rgba(var(--mat-primary-rgb), 0.15);
+    --background-modifier-success:        #ffdcc5;
+    --background-modifier-error:          #b81919;
+    --background-modifier-error-hover:    #b81919;
+
+    /* Obsidian color scale */
+    --color-base-00:    #fff9e7;
+    --color-base-05:    #dfd9c3;
+    --color-base-10:    #ffffff;
+    --color-base-20:    #faf4dc;
+    --color-base-25:    #f4eed6;
+    --color-base-30:    #eee8d1;
+    --color-base-35:    #e8e2cb;
+    --color-base-40:    #cec7a3;
+    --color-base-50:    #7d7858;
+    --color-base-60:    #4b472b;
+    --color-base-70:    #1e1c0e;
+    --color-base-100:   #333121;
+
+    /* Semantic colors */
+    --color-red:        #b81919;
+    --color-orange:     #665e11;
+    --color-yellow:     #884f20;
+    --color-green:      #ffdcc5;
+    --color-cyan:       #ffdcc5;
+    --color-blue:       #924900;
+    --color-purple:     #884f20;
+    --color-pink:       #665e11;
+
+    /* Headings */
+    --h1-color:     #924900;
+    --h2-color:     #924900;
+    --h3-color:     #884f20;
+    --h4-color:     #665e11;
+    --h5-color:     #4b472b;
+    --h6-color:     #7d7858;
+
+    /* Links */
+    --link-color:            #924900;
+    --link-color-hover:      #301400;
+    --link-external-color:   #665e11;
+    --link-unresolved-color: #7d7858;
+
+    /* Tags */
+    --tag-color:            #301400;
+    --tag-background:       #ffdcc5;
+    --tag-border-color:     #924900;
+    --tag-color-hover:      #ffffff;
+    --tag-background-hover: #924900;
+
+    /* Checkboxes */
+    --checkbox-color:        #924900;
+    --checkbox-color-hover:  #ffdcc5;
+    --checkbox-border-color: #7d7858;
+    --checkbox-marker-color: #ffffff;
+
+    /* Code blocks */
+    --code-background:  #faf4dc;
+    --code-normal:      #1e1c0e;
+    --code-comment:     #7d7858;
+    --code-function:    #924900;
+    --code-important:   #b81919;
+    --code-keyword:     #884f20;
+    --code-operator:    #665e11;
+    --code-property:    #4b472b;
+    --code-punctuation: #cec7a3;
+    --code-string:      #665e11;
+    --code-tag:         #b81919;
+    --code-value:       #884f20;
+
+    /* Scrollbar */
+    --scrollbar-thumb-bg:        rgba(var(--mat-on-surface-rgb), 0.12);
+    --scrollbar-active-thumb-bg: rgba(var(--mat-on-surface-rgb), 0.25);
+    --scrollbar-bg:              transparent;
+
+    /* Inputs */
+    --input-shadow: none;
+    --input-shadow-hover: 0 0 0 2px #7d7858;
+
+    /* Graph view */
+    --graph-node:            #924900;
+    --graph-node-unresolved: #7d7858;
+    --graph-node-focused:    #301400;
+    --graph-node-tag:        #884f20;
+    --graph-node-attachment: #665e11;
+    --graph-line:            #cec7a3;
+    --graph-background:      #fff9e7;
+
+}
+
+.cm-active {
+    background-color: rgba(var(--mat-on-surface-rgb), 0.03) !important;
+}

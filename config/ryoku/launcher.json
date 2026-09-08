@@ -1,0 +1,13 @@
+{
+    "bgBlur": 10,
+    "heroImage": "file:///home/amtia/Pictures/Wallpapers/Background_YoRHa_1440p.png",
+    "heroPosX": 0.5,
+    "heroPosY": 0.5459425403225806,
+    "heroStrength": 0.7968000000000001,
+    "radius": 16,
+    "resultSettleMs": 360,
+    "showGreeting": false,
+    "showWeather": false,
+    "variant": "hero",
+    "weatherUnit": "C"
+}

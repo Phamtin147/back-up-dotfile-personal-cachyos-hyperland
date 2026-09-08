@@ -1,26 +1,52 @@
-@import url("noctalia.css");
+/* Ryoku palette -> GTK. Rendered by matugen; do not edit. One file themes both
+   toolkits: libadwaita / GTK 4 read the *_color names, classic GTK 3 (Adwaita)
+   reads the @theme_* names. Each toolkit ignores the other's names, so both sets
+   live together. Values are Material 3 role names (the same roles the shell and
+   the reference paint with), so a wallpaper scheme reaches the whole app suite
+   with the identical semantics, not a base16 approximation. */
 
-/* Fix GTK4 / Libadwaita / Nautilus popover double layer issue */
-window.popup,
-window.popup > .background,
-window.popover,
-window.menu,
-popover,
-popover.menu,
-popover.background,
-.popover,
-.menu {
-    background-color: transparent;
-    background-image: none;
-    box-shadow: none;
-}
+/* --- libadwaita / GTK 4 (Files, text editors, GNOME apps) --- */
+@define-color accent_color #924900;
+@define-color accent_bg_color #924900;
+@define-color accent_fg_color #ffffff;
+@define-color window_bg_color #fff9e7;
+@define-color window_fg_color #1e1c0e;
+@define-color view_bg_color #fff9e7;
+@define-color view_fg_color #1e1c0e;
+@define-color headerbar_bg_color #f4eed6;
+@define-color headerbar_fg_color #1e1c0e;
+@define-color headerbar_border_color #cec7a3;
+@define-color headerbar_backdrop_color #fff9e7;
+@define-color card_bg_color #faf4dc;
+@define-color card_fg_color #1e1c0e;
+@define-color dialog_bg_color #eee8d1;
+@define-color dialog_fg_color #1e1c0e;
+@define-color popover_bg_color #f4eed6;
+@define-color popover_fg_color #1e1c0e;
+@define-color sidebar_bg_color #faf4dc;
+@define-color sidebar_fg_color #1e1c0e;
+@define-color destructive_color #b81919;
+@define-color destructive_bg_color #b81919;
+@define-color destructive_fg_color #ffffff;
+@define-color warning_color #665e11;
+@define-color success_color #884f20;
 
-popover > contents,
-popover.menu > contents,
-popover contents,
-.popover > contents,
-.popover.menu > contents {
-    background-color: var(--popover-bg-color);
-    color: var(--popover-fg-color);
-}
-
+/* --- classic GTK 3 (Adwaita named palette) --- */
+@define-color theme_bg_color #fff9e7;
+@define-color theme_fg_color #1e1c0e;
+@define-color theme_base_color #fff9e7;
+@define-color theme_text_color #1e1c0e;
+@define-color theme_selected_bg_color #924900;
+@define-color theme_selected_fg_color #ffffff;
+@define-color theme_unfocused_bg_color #fff9e7;
+@define-color theme_unfocused_fg_color #1e1c0e;
+@define-color theme_unfocused_base_color #fff9e7;
+@define-color theme_unfocused_text_color #1e1c0e;
+@define-color theme_unfocused_selected_bg_color #924900;
+@define-color theme_unfocused_selected_fg_color #ffffff;
+@define-color insensitive_bg_color #f4eed6;
+@define-color insensitive_fg_color #4b472b;
+@define-color insensitive_base_color #fff9e7;
+@define-color borders #cec7a3;
+@define-color unfocused_borders #cec7a3;
+@define-color error_color #b81919;

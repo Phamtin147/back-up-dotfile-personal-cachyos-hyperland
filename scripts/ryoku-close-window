@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+active_info=$(hyprctl activewindow -j 2>/dev/null)
+pid=$(echo "$active_info" | jq -r '.pid // empty' 2>/dev/null)
+class=$(echo "$active_info" | jq -r '.class // empty' 2>/dev/null)
+
+# Close active window immediately via Hyprland killactive
+hyprctl dispatch killactive >/dev/null 2>&1
+
+# Clean up background zombie processes for single-instance apps
+if [ -n "$pid" ] && [ "$pid" -gt 0 ] 2>/dev/null; then
+  case "$class" in
+    antigravity|code|Code|discord|Spotify|slack|steam|chromium|google-chrome)
+      (
+        sleep 0.15
+        remaining=$(hyprctl clients -j 2>/dev/null | jq -r --arg class "$class" '[.[] | select(.class == $class and .mapped == true)] | length')
+        if [ "$remaining" = "0" ] 2>/dev/null; then
+          kill -15 "$pid" 2>/dev/null || true
+          pkill -15 -f "$class" 2>/dev/null || true
+          sleep 0.15
+          kill -9 "$pid" 2>/dev/null || true
+        fi
+      ) &
+      ;;
+  esac
+fi

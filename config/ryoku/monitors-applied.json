@@ -1,0 +1,30 @@
+{
+  "monitors": [
+    {
+      "id": "Apple Computer Inc|Color LCD|",
+      "output": "eDP-1",
+      "mode": "3072x1920@60.00",
+      "position": "0x0",
+      "scale": 2,
+      "transform": 0,
+      "vrr": 0,
+      "mirror": "",
+      "disabled": false,
+      "cm": "srgb",
+      "sdrbrightness": 1
+    },
+    {
+      "id": "ViewSonic Corporation|VX3276-QHD|VSX2348A0688",
+      "output": "DP-3",
+      "mode": "2560x1440@74.93",
+      "position": "1536x0",
+      "scale": 2,
+      "transform": 0,
+      "vrr": 0,
+      "mirror": "",
+      "disabled": false,
+      "cm": "srgb",
+      "sdrbrightness": 1
+    }
+  ]
+}

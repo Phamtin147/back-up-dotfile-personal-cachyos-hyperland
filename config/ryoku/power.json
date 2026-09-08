@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "power-saver": {
+      "epp": "balance_performance"
+    },
+    "balanced": {
+      "epp": "balance_performance"
+    },
+    "performance": {
+      "epp": "performance"
+    }
+  }
+}

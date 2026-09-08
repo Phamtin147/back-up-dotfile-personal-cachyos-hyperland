@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# Niri / Noctalia style dynamic workspaces per monitor in Hyprland
+# Strictly isolated per monitor session with auto-window focus.
+
+set -euo pipefail
+
+get_focused_mon_info() {
+    # 1. Check activewindow monitor first
+    local win_mon
+    win_mon=$(hyprctl activewindow -j 2>/dev/null | jq -r '.monitor // empty' 2>/dev/null || true)
+    if [[ -n "$win_mon" && "$win_mon" != "null" ]]; then
+        local res
+        res=$(hyprctl monitors -j 2>/dev/null | jq -r --argjson m "$win_mon" '.[] | select(.id == $m) | "\(.name) \(.id)"' 2>/dev/null || true)
+        if [[ -n "$res" ]]; then
+            echo "$res"
+            return
+        fi
+    fi
+
+    # 2. Check activeworkspace monitor
+    local ws_mon
+    ws_mon=$(hyprctl activeworkspace -j 2>/dev/null | jq -r '.monitorID // empty' 2>/dev/null || true)
+    if [[ -n "$ws_mon" && "$ws_mon" != "null" ]]; then
+        local res
+        res=$(hyprctl monitors -j 2>/dev/null | jq -r --argjson m "$ws_mon" '.[] | select(.id == $m) | "\(.name) \(.id)"' 2>/dev/null || true)
+        if [[ -n "$res" ]]; then
+            echo "$res"
+            return
+        fi
+    fi
+
+    # 3. Fallback to focused flag
+    hyprctl monitors -j 2>/dev/null | jq -r '.[] | select(.focused) | "\(.name) \(.id)"' 2>/dev/null || echo "eDP-1 0"
+}
+
+read -r mon_name mon_id <<< "$(get_focused_mon_info)"
+# Monitor 0: workspaces 1 -> 500
+# Monitor 1: workspaces 501 -> 1000
+# Monitor 2: workspaces 1001 -> 1500
+base=$(( mon_id * 500 ))
+max_ws=$(( base + 500 ))
+
+get_active_ws_info() {
+    hyprctl activeworkspace -j 2>/dev/null | jq -r '"\(.id) \(.windows)"' 2>/dev/null || echo "$(( base + 1 )) 1"
+}
+
+read -r cur_id cur_windows <<< "$(get_active_ws_info)"
+
+cmd=${1:-}
+action=${2:-}
+
+focus_window_on_ws() {
+    local ws="$1"
+    local win_addr
+    win_addr=$(hyprctl clients -j 2>/dev/null | jq -r --argjson ws "$ws" '
+        [.[] | select(.workspace.id == $ws and .mapped and (.hidden | not))]
+        | sort_by(.focusHistoryID)
+        | .[0].address // empty
+    ' 2>/dev/null || true)
+    if [[ -n "$win_addr" && "$win_addr" != "null" ]]; then
+        hyprctl dispatch focuswindow "address:$win_addr" >/dev/null 2>&1 || true
+    fi
+}
+
+case "$cmd" in
+    focus)
+        target=""
+        if [[ "$action" =~ ^[1-9]$ ]]; then
+            target=$(( base + action ))
+        elif [[ "$action" == "+1" || "$action" == "down" || "$action" == "next" ]]; then
+            if [[ $cur_id -lt $(( base + 1 )) || $cur_id -ge $max_ws ]]; then
+                target=$(( base + 1 ))
+            else
+                # Niri rule: Only allow at most 1 trailing empty workspace below
+                if [[ $cur_windows -gt 0 ]]; then
+                    target=$(( cur_id + 1 ))
+                else
+                    # Current workspace is empty. Check if any occupied workspace exists further down on THIS monitor
+                    has_below=$(hyprctl workspaces -j 2>/dev/null | jq -r --argjson cur "$cur_id" --argjson max "$max_ws" '
+                        [ .[] | select(.id > $cur and .id <= $max and .windows > 0) ] | length
+                    ' 2>/dev/null || echo 0)
+                    if [[ $has_below -gt 0 ]]; then
+                        target=$(( cur_id + 1 ))
+                    fi
+                fi
+            fi
+        elif [[ "$action" == "-1" || "$action" == "up" || "$action" == "prev" ]]; then
+            if [[ $cur_id -le $(( base + 1 )) || $cur_id -gt $max_ws ]]; then
+                target=$(( base + 1 ))
+            else
+                target=$(( cur_id - 1 ))
+            fi
+        fi
+
+        if [[ -n "$target" ]]; then
+            hyprctl dispatch "hl.dsp.focus({ workspace = $target })" >/dev/null
+            focus_window_on_ws "$target"
+        fi
+        ;;
+    move)
+        if [[ "$action" =~ ^[1-9]$ ]]; then
+            target=$(( base + action ))
+            hyprctl dispatch "hl.dsp.window.move({ workspace = $target })" >/dev/null
+        elif [[ "$action" == "+1" || "$action" == "down" || "$action" == "next" ]]; then
+            if [[ $cur_id -lt $(( base + 1 )) || $cur_id -ge $max_ws ]]; then
+                target=$(( base + 1 ))
+            else
+                target=$(( cur_id + 1 ))
+            fi
+            hyprctl dispatch "hl.dsp.window.move({ workspace = $target })" >/dev/null
+        elif [[ "$action" == "-1" || "$action" == "up" || "$action" == "prev" ]]; then
+            if [[ $cur_id -le $(( base + 1 )) || $cur_id -gt $max_ws ]]; then
+                target=$(( base + 1 ))
+            else
+                target=$(( cur_id - 1 ))
+            fi
+            hyprctl dispatch "hl.dsp.window.move({ workspace = $target })" >/dev/null
+        fi
+        ;;
+esac

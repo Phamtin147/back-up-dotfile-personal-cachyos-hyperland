@@ -1,0 +1,249 @@
+import QtQuick
+import Quickshell
+import Quickshell.Io
+import "../IconMap.js" as IconMap
+import Ryoku.Ui.Singletons
+
+Item {
+    id: rootMod
+    required property var root
+    readonly property color contentColor: root.widgetContentColor("G11", root.widgetIconColor)
+
+    property string mode:   "none"  // "wifi" | "ethernet" | "none"
+    property string ssid:   ""
+    property int    signal: 0
+    property string iface:  ""
+
+    // ── speed tracking ──
+    property real prevRx:  -1
+    property real prevTx:  -1
+    property real prevMs:   0
+    property real dlRate:   0
+    property real ulRate:   0
+
+    function formatSpeed(bps) {
+        var mb = bps / 1048576
+        var s = mb < 10 ? mb.toFixed(2) : mb.toFixed(1)
+        return s.padStart(5) + "M"
+    }
+
+    function formatBarRate(bps) {
+        var value = Math.max(0, Number(bps) || 0)
+        if (value >= 1073741824) {
+            var gib = value / 1073741824
+            return (gib < 10 ? gib.toFixed(1) : gib.toFixed(0)) + "G"
+        }
+        if (value >= 1048576) {
+            var mib = value / 1048576
+            return (mib < 10 ? mib.toFixed(1) : mib.toFixed(0)) + "M"
+        }
+        if (value >= 1024) {
+            var kib = value / 1024
+            return (kib < 10 ? kib.toFixed(1) : kib.toFixed(0)) + "K"
+        }
+        return "0K"
+    }
+
+    function trafficLevel(bps) {
+        var value = Math.max(0, Number(bps) || 0)
+        if (value <= 0) return 0
+        return Math.min(1, Math.log(1 + value / 1024) / Math.log(1 + 102400))
+    }
+
+    function updateSpeeds(rx, tx, now) {
+        if (prevRx >= 0 && prevMs > 0) {
+            var dt = (now - prevMs) / 1000
+            if (dt > 0) {
+                dlRate = Math.max(0, (rx - prevRx) / dt)
+                ulRate = Math.max(0, (tx - prevTx) / dt)
+            }
+        }
+        prevRx = rx; prevTx = tx; prevMs = now
+    }
+
+    readonly property var wifiIcons: [
+        "signal_wifi_0_bar", "network_wifi_1_bar", "network_wifi_2_bar",
+        "network_wifi_3_bar", "signal_wifi_4_bar"
+    ]
+    readonly property string wifiIconName: signal > 0
+        ? wifiIcons[Math.min(4, Math.floor(signal / 22))]
+        : "signal_wifi_off"
+
+    readonly property string tooltipText: {
+        if (mode === "none") return I18n.tr("Offline")
+        var rate = "↓ " + formatSpeed(dlRate) + "/s  ↑ " + formatSpeed(ulRate) + "/s"
+        return mode === "wifi" ? (ssid + " · " + signal + "%  ·  " + rate) : rate
+    }
+
+    implicitWidth: root.modNetwork ? (row.implicitWidth + 18) : 0
+    Binding { target: rootMod.root; property: "networkMode"; value: rootMod.mode }
+    implicitHeight: 28
+
+    Row {
+        id: row
+        anchors.centerIn: parent
+        spacing: 4
+
+        // ── wifi: icon ──
+        IconText {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: rootMod.mode === "wifi"
+            text: IconMap.icon(rootMod.wifiIconName)
+            color: rootMod.contentColor
+            font.pixelSize: 15
+            Behavior on color { ColorAnimation { duration: 160 } }
+        }
+
+        IconText {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: rootMod.mode !== "wifi"
+            text: IconMap.icon(rootMod.mode === "ethernet" ? "lan" : "signal_wifi_off")
+            color: rootMod.mode === "ethernet"
+                ? rootMod.contentColor
+                : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.65)
+            font.pixelSize: rootMod.mode === "ethernet" ? 14 : 15
+            Behavior on color { ColorAnimation { duration: 160 } }
+        }
+
+        UiText {
+            id: ssidLabel
+            anchors.verticalCenter: parent.verticalCenter
+            visible: rootMod.mode === "wifi"
+            text: rootMod.ssid !== "" ? rootMod.ssid : I18n.tr("Wi-Fi")
+            color: rootMod.contentColor
+            font.family: root.mono
+            font.pixelSize: 11
+        }
+
+        Item {
+            id: trafficMeter
+            anchors.verticalCenter: parent.verticalCenter
+            visible: rootMod.mode !== "none"
+            width: 16
+            height: 20
+
+            readonly property real rxLevel: rootMod.trafficLevel(rootMod.dlRate)
+            readonly property real txLevel: rootMod.trafficLevel(rootMod.ulRate)
+
+            UiText {
+                x: 0; y: 0
+                width: 8; height: 8
+                text: I18n.tr("RX")
+                color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
+                font.family: root.mono
+                font.pixelSize: 7
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+            Column {
+                x: 2; y: 8
+                spacing: 1
+                Repeater {
+                    model: 4
+                    delegate: Rectangle {
+                        required property int index
+                        width: 4; height: 2; radius: 1
+                        color: trafficMeter.rxLevel > index / 4
+                            ? rootMod.contentColor
+                            : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.18)
+                        Behavior on color { ColorAnimation { duration: 160 } }
+                    }
+                }
+            }
+
+            Column {
+                x: 10; y: 1
+                spacing: 1
+                Repeater {
+                    model: 4
+                    delegate: Rectangle {
+                        required property int index
+                        width: 4; height: 2; radius: 1
+                        color: trafficMeter.txLevel > (3 - index) / 4
+                            ? rootMod.contentColor
+                            : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.18)
+                        Behavior on color { ColorAnimation { duration: 160 } }
+                    }
+                }
+            }
+            UiText {
+                x: 8; y: 13
+                width: 8; height: 8
+                text: I18n.tr("TX")
+                color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
+                font.family: root.mono
+                font.pixelSize: 7
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+    }
+
+    Process {
+        id: netProc
+        command: ["bash", "-c",
+            "IFACE=$(ip route get 1.1.1.1 2>/dev/null | awk \x27{for(i=1;i<=NF;i++) if($i==\"dev\"){print $(i+1); exit}}\x27); " +
+            "if [ -z \"$IFACE\" ]; then echo NONE; exit; fi; " +
+            "RX=$(awk -v i=\"$IFACE:\" \x27$1==i{print $2}\x27 /proc/net/dev 2>/dev/null); " +
+            "TX=$(awk -v i=\"$IFACE:\" \x27$1==i{print $10}\x27 /proc/net/dev 2>/dev/null); " +
+            "if [ -d \"/sys/class/net/$IFACE/wireless\" ]; then " +
+            "  LINK=$(iw dev \"$IFACE\" link 2>/dev/null); " +
+            "  SSID=$(printf \x27%s\\n\x27 \"$LINK\" | sed -n \x27s/^\\s*SSID: //p\x27 | head -1); " +
+            "  if [[ \"$SSID\" =~ \\\\(x[0-9A-Fa-f]{2}|[0-7]{3}) ]]; then SSID=$(printf \x27%b\x27 \"$SSID\"); fi; " +
+            "  SIG=$(printf \x27%s\\n\x27 \"$LINK\" | awk \x27/signal:/ {print int($2); exit}\x27); " +
+            "  QUAL=$(awk -v s=\"$SIG\" \x27BEGIN{q=int((s+110)*100/70);if(q<0)q=0;if(q>100)q=100;print q}\x27); " +
+            "  printf \x27WIFI\\t%s\\t%s\\t%s\\t%s\\n\x27 \"$SSID\" \"$QUAL\" \"$RX\" \"$TX\"; " +
+            "else " +
+            "  printf \x27ETHERNET\\t%s\\t%s\\t%s\\n\x27 \"$IFACE\" \"$RX\" \"$TX\"; " +
+            "fi"
+        ]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var line  = this.text.trim()
+                var parts = line.split("\t")
+                var now   = Date.now()
+
+                if (parts[0] === "WIFI" && parts.length >= 5) {
+                    rootMod.mode   = "wifi"
+                    rootMod.ssid   = parts[1] || ""
+                    rootMod.signal = parseInt(parts[2]) || 0
+                    rootMod.updateSpeeds(parseFloat(parts[3]) || 0, parseFloat(parts[4]) || 0, now)
+                } else if (parts[0] === "ETHERNET" && parts.length >= 4) {
+                    rootMod.mode  = "ethernet"
+                    rootMod.iface = parts[1] || ""
+                    rootMod.updateSpeeds(parseFloat(parts[2]) || 0, parseFloat(parts[3]) || 0, now)
+                } else {
+                    rootMod.mode  = "none"
+                    rootMod.prevRx = -1; rootMod.prevTx = -1
+                }
+            }
+        }
+    }
+
+    readonly property bool fastPoll: root.modNetwork || root.networkVisible || mode === "wifi"
+    onFastPollChanged: if (fastPoll) { netProc.running = false; netProc.running = true }
+
+    Timer {
+        interval: rootMod.fastPoll ? 2000 : 60000
+        running: true; repeat: true; triggeredOnStart: true
+        onTriggered: { netProc.running = false; netProc.running = true }
+    }
+
+    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+
+    Process { id: clickRunner; command: ["bash", "-c", root.launchWifiCmd] }
+
+    MouseArea {
+        anchors.fill: parent
+        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onEntered: tip.show()
+        onExited:  { tip.hide() }
+        onClicked: (e) => {
+            tip.hide()
+            if (e.button === Qt.RightButton) { clickRunner.running = false; clickRunner.running = true }
+            else root.networkVisible = !root.networkVisible
+        }
+    }
+}

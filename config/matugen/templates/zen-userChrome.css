@@ -1,0 +1,72 @@
+/* Zen Browser - Synced Material Theme with Frosted Glass */
+
+:root {
+  /* --- Core Palette Synced from Wallpaper --- */
+  --zen-colors-primary: {{colors.primary.default.hex}} !important;
+  --zen-primary-color: {{colors.primary.default.hex}} !important;
+  --zen-colors-secondary: {{colors.surface_container_low.default.hex}} !important;
+  --zen-colors-tertiary: {{colors.surface_container.default.hex}} !important;
+  --zen-colors-border: {{colors.outline_variant.default.hex}} !important;
+
+  /* --- Frosted Glass Backgrounds --- */
+  --zen-themed-toolbar-bg: rgba({{colors.surface_container_lowest.default.red}}, {{colors.surface_container_lowest.default.green}}, {{colors.surface_container_lowest.default.blue}}, 0.75) !important;
+  --zen-main-browser-background: transparent !important;
+  --zen-urlbar-background: rgba({{colors.surface_container.default.red}}, {{colors.surface_container.default.green}}, {{colors.surface_container.default.blue}}, 0.75) !important;
+  --zen-colors-input-bg: rgba({{colors.surface_container.default.red}}, {{colors.surface_container.default.green}}, {{colors.surface_container.default.blue}}, 0.75) !important;
+  --newtab-background-color: {{colors.surface_container_lowest.default.hex}} !important;
+  --toolbar-bgcolor: transparent !important;
+
+  /* --- Text & Accents --- */
+  --lwt-text-color: {{colors.on_surface.default.hex}} !important;
+  --toolbar-color: {{colors.on_surface.default.hex}} !important;
+  --toolbar-field-color: {{colors.on_surface.default.hex}} !important;
+  --toolbarbutton-icon-fill: {{colors.primary.default.hex}} !important;
+  --tab-selected-textcolor: {{colors.primary.default.hex}} !important;
+  --newtab-text-primary-color: {{colors.on_surface.default.hex}} !important;
+  --lwt-sidebar-text-color: {{colors.on_surface.default.hex}} !important;
+}
+
+/* Prevent outer toolbox from leaking dark rectangle on compact mode */
+#navigator-toolbox {
+  background: transparent !important;
+}
+
+#zen-sidebar-splitter {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+/* --- Frosted Glass Blur on Sidebar Body & Top Bar --- */
+.zen-toolbar-background,
+#zen-appcontent-navbar-container,
+.sidebar-panel {
+  backdrop-filter: blur(24px) saturate(130%) !important;
+  background-color: var(--zen-themed-toolbar-bg) !important;
+}
+
+:root:not([zen-compact-mode="true"]) #navigator-toolbox {
+  backdrop-filter: blur(24px) saturate(130%) !important;
+  background-color: var(--zen-themed-toolbar-bg) !important;
+}
+
+/* Frosted URL bar */
+#urlbar-background {
+  backdrop-filter: blur(14px) !important;
+  background-color: var(--zen-urlbar-background) !important;
+}
+
+/* Active Tab Tint */
+.tab-background[selected=""] {
+  background: rgba({{colors.primary.default.red}}, {{colors.primary.default.green}}, {{colors.primary.default.blue}}, 0.16) !important;
+}
+
+/* Navigation Controls */
+#back-button .toolbarbutton-icon,
+#forward-button .toolbarbutton-icon,
+#reload-button .toolbarbutton-icon,
+#stop-button .toolbarbutton-icon,
+#PanelUI-menu-button .toolbarbutton-icon,
+#unified-extensions-button .toolbarbutton-icon {
+  fill: var(--zen-primary-color) !important;
+  color: var(--zen-primary-color) !important;
+}

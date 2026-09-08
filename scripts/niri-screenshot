@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Interactive Screenshot with Swappy UI Editor (100% Niri style)
+
+DIR="$HOME/Pictures/screenshots"
+mkdir -p "$DIR"
+
+# Single-instance lock
+exec 9>/tmp/niri_screenshot.lock
+if ! flock -n 9; then
+    exit 0
+fi
+
+# 1. Select area on frozen layer-shell
+GEOM=$(slurp -b "#00000088" -c "#38bdf8ff" -s "#38bdf822" -w 2 -d 2>/dev/null)
+
+# Exit if cancelled with Esc
+[ -n "$GEOM" ] || exit 0
+
+# 2. Capture and open in Swappy Interactive Editor
+grim -g "$GEOM" - | swappy -f -

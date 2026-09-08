@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Power / Session Menu via fuzzel
+CHOICE=$(printf "󰌾  Lock\n󰤄  Suspend\n󰍃  Log Out\n󰑐  Reboot\n󰐥  Shutdown" | fuzzel --dmenu --prompt "Session: " -l 5 -w 18)
+
+case "$CHOICE" in
+    *"Lock"*)
+        ryoku-shell lock 2>/dev/null || true
+        ;;
+    *"Suspend"*)
+        systemctl suspend
+        ;;
+    *"Log Out"*)
+        hyprctl dispatch exit 0
+        ;;
+    *"Reboot"*)
+        systemctl reboot
+        ;;
+    *"Shutdown"*)
+        systemctl poweroff
+        ;;
+esac

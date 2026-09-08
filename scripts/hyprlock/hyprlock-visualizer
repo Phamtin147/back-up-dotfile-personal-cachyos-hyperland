@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# hyprlock-visualizer: reads live CAVA spectrum from /tmp/cava-hyprlock.txt
+# hyprlock-visualizer: reads live CAVA spectrum only when hyprlock is active
+
+if ! pgrep -x "hyprlock" >/dev/null 2>&1; then
+    pkill -f "hyprlock-cava-daemon" >/dev/null 2>&1 || true
+    pkill -f "config-hyprlock" >/dev/null 2>&1 || true
+    exit 0
+fi
 
 if ! pgrep -f "hyprlock-cava-daemon" >/dev/null 2>&1; then
     /home/amtia/.local/bin/hyprlock-cava-daemon >/dev/null 2>&1 &

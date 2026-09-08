@@ -1,0 +1,1 @@
+-- User allowed fullscreen mode 1 (maximize / full-width toggle)

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Niri-correct column navigation: only move if there's actually a column in that direction.
+# Never scrolls to empty or does nothing if already at the edge.
+
+set -euo pipefail
+
+dir=${1:-left}
+
+# Get focused window info
+win_json=$(hyprctl activewindow -j 2>/dev/null)
+win_addr=$(echo "$win_json" | jq -r '.address // ""')
+win_ws=$(echo "$win_json" | jq -r '.workspace.id // ""')
+
+if [[ -z "$win_addr" || "$win_addr" == "null" || -z "$win_ws" || "$win_ws" == "null" ]]; then
+    # No focused window, do nothing
+    exit 0
+fi
+
+# Get all windows in this workspace, sorted by x position
+if [[ "$dir" == "right" ]]; then
+    # Check if any window exists to the right of current window in same workspace
+    win_x=$(echo "$win_json" | jq -r '.at[0]')
+    has_right=$(hyprctl clients -j 2>/dev/null | jq -r --argjson ws "$win_ws" --argjson wx "$win_x" '
+        [.[] | select(.workspace.id == $ws and .at[0] > $wx)] | length
+    ')
+    if [[ "$has_right" -gt 0 ]]; then
+        hyprctl dispatch "hl.dsp.layout('move +col')" >/dev/null 2>&1
+    fi
+elif [[ "$dir" == "left" ]]; then
+    win_x=$(echo "$win_json" | jq -r '.at[0]')
+    has_left=$(hyprctl clients -j 2>/dev/null | jq -r --argjson ws "$win_ws" --argjson wx "$win_x" '
+        [.[] | select(.workspace.id == $ws and .at[0] < $wx)] | length
+    ')
+    if [[ "$has_left" -gt 0 ]]; then
+        hyprctl dispatch "hl.dsp.layout('move -col')" >/dev/null 2>&1
+    fi
+fi

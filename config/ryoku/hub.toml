@@ -1,0 +1,4 @@
+[ui]
+  section = "appearance"
+  update_interval = "daily"
+  advanced = "1"

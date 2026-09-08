@@ -1,3 +1,64 @@
-[flavor]
-dark  = "noctalia"
-light = "noctalia"
+# Matugen Theme for Yazi File Manager
+[manager]
+cwd = { fg = "#924900" }
+
+# Hovered and selected
+hovered = { bg = "#e8e2cb", fg = "#1e1c0e" }
+preview_hovered = { underline = true }
+
+# Find
+find_keyword = { fg = "#924900", bold = true, italic = true, underline = true }
+find_position = { fg = "#665e11", italic = true }
+
+# Marker
+marker_copied = { fg = "#924900", bg = "#ffdcc5" }
+marker_cut = { fg = "#b81919", bg = "#ffdad6" }
+marker_marked = { fg = "#884f20", bg = "#ffdcc5" }
+marker_selected = { fg = "#665e11", bg = "#f0e58b" }
+
+# Tab
+tab_active = { bg = "#924900", fg = "#ffffff" }
+tab_inactive = { bg = "#f4eed6", fg = "#4b472b" }
+tab_width = 1
+
+# Count
+count_copied = { fg = "#ffffff", bg = "#924900" }
+count_cut = { fg = "#ffffff", bg = "#b81919" }
+count_selected = { fg = "#ffffff", bg = "#884f20" }
+
+# Border
+border_symbol = "│"
+border_style = { fg = "#7d7858" }
+
+[status]
+separator_open = ""
+separator_close = ""
+separator_style = { fg = "#e8e2cb", bg = "#e8e2cb" }
+
+# Mode
+mode_normal = { fg = "#ffffff", bg = "#924900", bold = true }
+mode_select = { fg = "#ffffff", bg = "#884f20", bold = true }
+mode_unset = { fg = "#ffffff", bg = "#b81919", bold = true }
+
+# Progress
+progress_label = { fg = "#1e1c0e", bold = true }
+progress_normal = { fg = "#924900", bg = "#e8e2cb" }
+progress_error = { fg = "#b81919", bg = "#e8e2cb" }
+
+# Permissions
+permissions_t = { fg = "#924900" }
+permissions_r = { fg = "#665e11" }
+permissions_w = { fg = "#b81919" }
+permissions_x = { fg = "#884f20" }
+permissions_s = { fg = "#7d7858" }
+
+[filetype]
+rules = [
+    { mime = "image/*", fg = "#665e11" },
+    { mime = "{audio,video}/*", fg = "#924900" },
+    { mime = "application/{zip,gzip,x-tar,x-bzip2,x-7z-compressed,x-rar,vnd.rar,x-xz,zstd}", fg = "#b81919" },
+    { url = "*", is = "orphan", fg = "#b81919" },
+    { url = "*", is = "exec", fg = "#884f20" },
+    { url = "*/", fg = "#924900", bold = true },
+    { url = "*", fg = "#1e1c0e" }
+]

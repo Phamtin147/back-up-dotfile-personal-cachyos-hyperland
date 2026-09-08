@@ -1,13 +1,21 @@
 // Antigravity IDE Custom CSS Preload
-// Injects /home/amtia/vscode-custom.css into webContents
+// Injects custom CSS into webContents
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
-const cssPath = '/home/amtia/vscode-custom.css';
+const homeDir = os.homedir();
+const candidatePaths = [
+  path.join(homeDir, '.config/vscode-custom-theme/css.css'),
+  path.join(homeDir, 'vscode-custom.css'),
+  path.join(homeDir, '.config/vscode-custom.css')
+];
+
+let cssPath = candidatePaths.find(p => fs.existsSync(p));
 
 try {
-  if (fs.existsSync(cssPath)) {
+  if (cssPath) {
     const customCSS = fs.readFileSync(cssPath, 'utf8');
     
     const injectCSS = () => {
@@ -30,9 +38,9 @@ try {
       injectCSS();
     }
     
-    console.log('[Antigravity Custom CSS] Preload script loaded');
+    console.log('[Antigravity Custom CSS] Injected:', cssPath);
   } else {
-    console.warn('[Antigravity Custom CSS] CSS file not found:', cssPath);
+    console.warn('[Antigravity Custom CSS] No custom CSS file found');
   }
 } catch (err) {
   console.error('[Antigravity Custom CSS] Preload error:', err);

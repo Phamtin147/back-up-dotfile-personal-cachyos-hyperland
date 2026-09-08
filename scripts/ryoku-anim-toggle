@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Dynamically load ALL available animation presets from animations directory
+
+ANIM_DIR="$HOME/.config/hypr/modules/animations"
+PRESET_FILE="$HOME/.config/ryoku/anim-preset"
+
+mkdir -p "$HOME/.config/ryoku"
+CURRENT="niri"
+if [ -f "$PRESET_FILE" ]; then
+    CURRENT=$(tr -d '[:space:]' < "$PRESET_FILE")
+fi
+
+# Gather all .lua presets dynamically
+mapfile -t PRESETS < <(find "$ANIM_DIR" -maxdepth 1 -name "*.lua" -exec basename {} .lua \; | sort)
+
+NEXT_INDEX=0
+for i in "${!PRESETS[@]}"; do
+    if [ "${PRESETS[$i]}" == "$CURRENT" ]; then
+        NEXT_INDEX=$(( (i + 1) % ${#PRESETS[@]} ))
+        break
+    fi
+done
+
+NEXT_PRESET="${PRESETS[$NEXT_INDEX]}"
+echo "$NEXT_PRESET" > "$PRESET_FILE"
+
+hyprctl reload >/dev/null 2>&1
+notify-send -a "Hyprland" "✨ Animation Preset ($((NEXT_INDEX + 1))/${#PRESETS[@]})" "$NEXT_PRESET" >/dev/null 2>&1

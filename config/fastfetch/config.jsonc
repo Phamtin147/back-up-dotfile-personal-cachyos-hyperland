@@ -1,0 +1,52 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "type": "kitty-direct",
+    "source": "~/.config/fastfetch/fastfetch-emblem.png",
+    "width": 30,
+    "height": 15,
+    "padding": {
+      "top": 1,
+      "right": 4,
+      "left": 2
+    }
+  },
+  "display": {
+    "color": { "keys": "38;2;146;73;0" },
+    "key": { "width": 9 },
+    "separator": "  ",
+    "percent": {
+      "type": 9,
+      "color": { "green": "38;2;127;191;106", "yellow": "38;2;217;164;65", "red": "38;2;184;25;25" }
+    }
+  },
+  "modules": [
+    "break",
+    { "type": "title", "format": "\u001b[1;38;2;30;28;14m{user-name}\u001b[0m\u001b[38;2;125;120;88m @ \u001b[0m\u001b[1;38;2;30;28;14m{host-name}\u001b[0m" },
+    { "type": "custom", "format": "\u001b[38;2;146;73;0m■\u001b[0m \u001b[38;2;75;71;43mRYOKU · 信 · a hand-built Arch desktop\u001b[0m" },
+    "break",
+
+    { "type": "custom", "format": "\u001b[38;2;146;73;0m──\u001b[0m \u001b[1;38;2;30;28;14mVITALS\u001b[0m \u001b[38;2;125;120;88m──────────────────────────\u001b[0m" },
+    { "type": "cpu",    "key": "CPU" },
+    { "type": "gpu",    "key": "GPU" },
+    { "type": "memory", "key": "MEMORY" },
+    { "type": "disk",   "key": "DISK" },
+    "break",
+
+    { "type": "custom", "format": "\u001b[38;2;146;73;0m──\u001b[0m \u001b[1;38;2;30;28;14mSYSTEM\u001b[0m \u001b[38;2;125;120;88m──────────────────────────\u001b[0m" },
+    { "type": "os",      "key": "OS" },
+    { "type": "kernel",  "key": "KERNEL" },
+    { "type": "wm",      "key": "WM" },
+    { "type": "shell",   "key": "SHELL" },
+    { "type": "packages","key": "PKGS" },
+    "break",
+
+    { "type": "custom", "format": "\u001b[38;2;146;73;0m──\u001b[0m \u001b[1;38;2;30;28;14mSESSION\u001b[0m \u001b[38;2;125;120;88m──────────────────────────\u001b[0m" },
+    { "type": "uptime",  "key": "UPTIME" },
+    { "type": "terminal","key": "TERM" },
+    "break",
+
+    { "type": "colors", "symbol": "circle", "paddingLeft": 2 },
+    "break"
+  ]
+}

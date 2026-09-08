@@ -1,19 +1,25 @@
 #!/usr/bin/env bash
-# hyprlock-cava-daemon: Continuous CAVA spectrum writer to /tmp/cava-hyprlock.txt
+# hyprlock-cava-daemon: Only runs while hyprlock is open
 
 cava -p "$HOME/.config/cava/config-hyprlock" 2>/dev/null | \
 python3 -u -c "
-import sys, os, io
+import sys, os, io, subprocess
 
 bars = ['▂', '▂', '▃', '▄', '▅', '▆', '▇', '█']
 
 stdin = sys.stdin.buffer.raw if hasattr(sys.stdin.buffer, 'raw') else sys.stdin.buffer
 buf = b''
+count = 0
 while True:
     data = stdin.read(256)
     if not data:
         break
     buf += data
+    count += 1
+    if count % 100 == 0:
+        res = subprocess.run(['pgrep', '-x', 'hyprlock'], stdout=subprocess.DEVNULL)
+        if res.returncode != 0:
+            break
     while b'\n' in buf:
         frame, buf = buf.split(b'\n', 1)
         vals = [b - 48 for b in frame if 48 <= b <= 55]

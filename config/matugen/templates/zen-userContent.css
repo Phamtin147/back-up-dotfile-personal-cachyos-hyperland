@@ -1,0 +1,8 @@
+/* Zen Browser - Synced Material Theme with Frosted Glass for New Tab & In-Content Pages */
+
+@-moz-document url("about:newtab"), url("about:home"), url("about:privatebrowsing") {
+  body {
+    background-color: {{colors.surface_container_lowest.default.hex}} !important;
+    color: {{colors.on_surface.default.hex}} !important;
+  }
+}

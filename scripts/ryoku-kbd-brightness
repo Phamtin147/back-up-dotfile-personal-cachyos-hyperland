@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+ACTION="${1:-up}"
+STEP="${2:-10}"
+
+DEV=":white:kbd_backlight"
+
+if [ "$ACTION" = "up" ]; then
+  brightnessctl -d "$DEV" set "+${STEP}%" >/dev/null 2>&1
+elif [ "$ACTION" = "down" ]; then
+  brightnessctl -d "$DEV" set "${STEP}%-" >/dev/null 2>&1
+elif [ "$ACTION" = "toggle" ]; then
+  CUR=$(brightnessctl -d "$DEV" get 2>/dev/null)
+  if [ "$CUR" -gt 0 ] 2>/dev/null; then
+    brightnessctl -d "$DEV" set 0 >/dev/null 2>&1
+  else
+    brightnessctl -d "$DEV" set 50% >/dev/null 2>&1
+  fi
+fi
+
+# Send notification popup with progress bar
+PCT=$(brightnessctl -d "$DEV" -m 2>/dev/null | cut -d, -f4 | tr -d %)
+if [ -n "$PCT" ]; then
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send -a "System" -r 9988 -h int:value:"$PCT" -h string:synchronous:brightness "Độ sáng phím" "${PCT}%" -t 1500 -i input-keyboard 2>/dev/null || true
+  fi
+fi

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Instant Bar Toggle (AutoHide / Pin) for Ryoku qsbar
+
+FILE="$HOME/.config/ryoku/shell.json"
+if [ ! -f "$FILE" ]; then exit 0; fi
+
+CURRENT=$(jq -r '.qsbar.barAutoHide // false' "$FILE")
+if [ "$CURRENT" == "true" ]; then
+    jq '.qsbar.barAutoHide = false' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+    notify-send -a "Ryoku Bar" -i "dialog-information" "Thanh Bar" "Trạng thái: Hiện cố định (Pinned)"
+else
+    jq '.qsbar.barAutoHide = true' "$FILE" > "$FILE.tmp" && mv "$FILE.tmp" "$FILE"
+    notify-send -a "Ryoku Bar" -i "dialog-information" "Thanh Bar" "Trạng thái: Ẩn tự động (Auto-hide)"
+fi

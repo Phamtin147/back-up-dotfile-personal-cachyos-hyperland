@@ -23,7 +23,8 @@ export PATH=$HOME/.npm-global/bin:$PATH
 
 
 # Load Angular CLI autocompletion.
-source <(ng completion script)
+command -v ng >/dev/null 2>&1 && source <(ng completion script)
 export PATH="$PATH:$HOME/flutter/bin"
 export NODE_TLS_REJECT_UNAUTHORIZED=0
 
+export TERMINAL="kitty"

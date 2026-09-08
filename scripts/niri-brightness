@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+ACTION="$1"
+STEP="${2:-5}"
+
+if [ "$ACTION" = "up" ]; then
+    brightnessctl -d gmux_backlight set "+${STEP}%" >/dev/null 2>&1
+else
+    brightnessctl -d gmux_backlight set "${STEP}%-" >/dev/null 2>&1
+fi
+brightnessctl -d appletb_backlight set 100% >/dev/null 2>&1 || true
+
+# Get real updated brightness percentage
+PCT=$(brightnessctl -d gmux_backlight -m 2>/dev/null | cut -d, -f4 | tr -d %)
+if [ -n "$PCT" ]; then
+    VAL=$(awk -v p="$PCT" "BEGIN { printf \"%.2f\", p/100 }")
+    qs -c shell ipc call brightness set "$VAL" >/dev/null 2>&1 || true
+fi

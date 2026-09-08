@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Toggles Edit/Unlock Mode on the top Bar for visual Drag-and-Drop
+qs -c shell ipc call layout unlock
+notify-send -a "Ryoku Bar" -i "preferences-desktop-display" "Chế độ chỉnh sửa thanh Bar" "Dùng chuột KÉO & THẢ các widget để sắp xếp vị trí theo ý bạn! Bấm ESC trên bàn phím khi xong."
