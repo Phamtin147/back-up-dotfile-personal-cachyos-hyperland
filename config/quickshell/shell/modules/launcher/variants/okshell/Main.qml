@@ -75,18 +75,18 @@ Scope {
     readonly property int pushCurve: Easing.OutQuint
     readonly property var spring: [0.38, 1.21, 0.22, 1, 1, 1]
 
-    readonly property int rad: 8
+    readonly property int rad: 14
     readonly property int fontSm: 14
     readonly property int fontMd: 16
-    readonly property int panelW: 560
+    readonly property int panelW: 600
     readonly property int barH: 52
-    readonly property int rowH: 44
+    readonly property int rowH: 48
     readonly property int pad: 10
     readonly property int elev: 0
-    readonly property int listMax: 420
+    readonly property int listMax: 480
     readonly property int maxPanelH: root.listMax + root.pad * 2
-    readonly property int restY: 24
-    readonly property int slideIn: 30      // OkShell's selected padding-left
+    readonly property int restY: 80
+    readonly property int slideIn: 16      // OkShell's selected padding-left
 
     readonly property color cardBg: Qt.rgba(cOnSurface.r, cOnSurface.g, cOnSurface.b, 0.06)
     readonly property color onBg: Qt.rgba(cPrimary.r, cPrimary.g, cPrimary.b, 0.20)
@@ -207,14 +207,7 @@ Scope {
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.namespace: "launcher"
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-            anchors { top: true }
-            // the surface slides off the top edge; nothing is left behind to frost
-            margins.top: root.openRequested ? root.restY : -(win.implicitHeight + 8)
-            Behavior on margins.top {
-                NumberAnimation { duration: root.pushMs; easing.type: root.pushCurve }
-            }
-            implicitWidth: root.panelW
-            implicitHeight: root.barH + 10 + root.maxPanelH
+            anchors { top: true; bottom: true; left: true; right: true }
 
             // keeps the surface mapped for the length of the slide-out
             property real p: root.openRequested ? 1 : 0
@@ -222,12 +215,41 @@ Scope {
                 NumberAnimation { duration: root.pushMs; easing.type: root.pushCurve }
             }
 
-            Item {
+            // Dim backdrop overlay & Fullscreen Click-Outside to Dismiss
+            Rectangle {
                 anchors.fill: parent
+                color: Qt.rgba(0, 0, 0, 0.35 * win.p)
 
                 MouseArea {
                     anchors.fill: parent
+                    cursorShape: Qt.ArrowCursor
                     onClicked: root.hide()
+                }
+            }
+
+            Item {
+                id: contentWrap
+                width: root.panelW
+                height: root.barH + 10 + root.panelH
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: root.openRequested ? root.restY : -(root.barH + 10 + root.maxPanelH + 60)
+                opacity: win.p
+                scale: 0.96 + 0.04 * win.p
+
+                Behavior on y {
+                    NumberAnimation { duration: root.pushMs; easing.type: root.pushCurve }
+                }
+                Behavior on opacity {
+                    NumberAnimation { duration: 180 }
+                }
+                Behavior on scale {
+                    NumberAnimation { duration: root.pushMs; easing.type: root.pushCurve }
+                }
+
+                // Prevent click on launcher card from dismissing
+                MouseArea {
+                    anchors.fill: parent
+                    preventStealing: true
                 }
 
                 // ── search row ──────────────────────────────────────────────
@@ -236,7 +258,7 @@ Scope {
                     width: root.panelW
                     height: root.barH
                     anchors.horizontalCenter: parent.horizontalCenter
-                    y: root.elev
+                    y: 0
 
                     Rectangle {
                         id: bar

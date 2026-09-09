@@ -8,6 +8,6 @@
     "resultSettleMs": 360,
     "showGreeting": false,
     "showWeather": false,
-    "variant": "hero",
+    "variant": "okshell",
     "weatherUnit": "C"
 }
