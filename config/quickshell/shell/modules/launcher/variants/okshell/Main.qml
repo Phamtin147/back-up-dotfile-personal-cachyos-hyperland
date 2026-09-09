@@ -105,7 +105,8 @@ Scope {
     // true for a beat after the query changes, so selection animations do not
     // fire on delegates the model just recycled underneath them
     property bool settling: false
-    onQueryChanged: { root.settling = true; settleT.restart(); }
+    onQueryChanged: { root.sel = 0; root.settling = true; settleT.restart(); }
+    onRowsChanged: { root.sel = 0; }
     Timer { id: settleT; interval: 90; onTriggered: root.settling = false }
     Timer {
         id: closeSettler
