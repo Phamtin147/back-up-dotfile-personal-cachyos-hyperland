@@ -383,24 +383,9 @@ Scope {
                             anchors.margins: root.pad
                             model: ScriptModel { values: root.rows }
                             currentIndex: root.sel
-                            highlightFollowsCurrentItem: true
-                            preferredHighlightBegin: 0
-                            preferredHighlightEnd: height
-                            highlightRangeMode: ListView.ApplyRange
                             clip: true
                             boundsBehavior: Flickable.StopAtBounds
                             cacheBuffer: root.rowH * 8
-
-                            // the plate slides between rows rather than fading
-                            highlight: Rectangle {
-                                radius: root.rad
-                                color: root.onBg
-                                border.width: 1
-                                border.color: root.onLine
-                                Sumi {}
-                            }
-                            highlightMoveDuration: root.settling ? 0 : 260
-                            highlightResizeDuration: 0
 
                             delegate: Item {
                                 id: li
@@ -409,6 +394,16 @@ Scope {
                                 width: ListView.view.width
                                 height: root.rowH
                                 readonly property bool on: index === root.sel
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: root.rad
+                                    color: li.on ? root.onBg : "transparent"
+                                    border.width: li.on ? 1 : 0
+                                    border.color: root.onLine
+                                    visible: li.on
+                                    Sumi { visible: li.on }
+                                }
 
                                 MouseArea {
                                     anchors.fill: parent
