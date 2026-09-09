@@ -325,7 +325,10 @@ def execute_update(pkg_names: list[str]):
         print(f"   {BOLD}{name}{RESET}")
     print()
 
-    cmd = [helper, "-S"] + pkg_names
+    cmd = [helper, "-S"]
+    if "yay" in helper or "paru" in helper:
+        cmd += ["--nodiffmenu", "--nocleanmenu", "--noeditmenu", "--answerclean", "None", "--answerdiff", "None"]
+    cmd += pkg_names
     os.execvp(helper, cmd)
 
 def main():
@@ -346,7 +349,10 @@ def main():
     if args.update:
         pkg = args.update
         helper = shutil.which("yay") or shutil.which("paru") or "sudo pacman"
-        cmd = [helper, "-S", pkg]
+        cmd = [helper, "-S"]
+        if "yay" in helper or "paru" in helper:
+            cmd += ["--nodiffmenu", "--nocleanmenu", "--noeditmenu", "--answerclean", "None", "--answerdiff", "None"]
+        cmd.append(pkg)
         os.execvp(helper, cmd)
         return
 
