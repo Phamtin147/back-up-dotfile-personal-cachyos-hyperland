@@ -115,7 +115,7 @@ def scan_repo_updates() -> list[PkgUpdate]:
 
 def scan_aur_updates() -> list[PkgUpdate]:
     updates = []
-    helper = shutil.which("yay") or shutil.which("paru")
+    helper = shutil.which("paru") or shutil.which("yay")
     if not helper:
         return updates
     try:
@@ -314,21 +314,25 @@ class UpdateTUI:
                 selected = [u.name for u in self.all_updates if u.selected]
                 return selected
 
+def get_update_helper() -> tuple[str, list[str]]:
+    if shutil.which("paru"):
+        return "paru", ["--skipreview"]
+    elif shutil.which("yay"):
+        return "yay", ["--nodiffmenu", "--nocleanmenu", "--noeditmenu", "--answerclean", "None", "--answerdiff", "None"]
+    return "sudo pacman", []
+
 def execute_update(pkg_names: list[str]):
     if not pkg_names:
         print(f"{YELLOW}==> No packages selected for update.{RESET}")
         return
 
-    helper = shutil.which("yay") or shutil.which("paru") or "sudo pacman"
-    print(f"{BOLD}{BLUE}:: Updating {len(pkg_names)} package(s):{RESET}")
+    helper, extra_flags = get_update_helper()
+    print(f"{BOLD}{BLUE}:: Updating {len(pkg_names)} package(s) via {helper}:{RESET}")
     for name in pkg_names:
         print(f"   {BOLD}{name}{RESET}")
     print()
 
-    cmd = [helper, "-S"]
-    if "yay" in helper or "paru" in helper:
-        cmd += ["--nodiffmenu", "--nocleanmenu", "--noeditmenu", "--answerclean", "None", "--answerdiff", "None"]
-    cmd += pkg_names
+    cmd = [helper, "-S"] + extra_flags + pkg_names
     os.execvp(helper, cmd)
 
 def main():
@@ -348,11 +352,8 @@ def main():
 
     if args.update:
         pkg = args.update
-        helper = shutil.which("yay") or shutil.which("paru") or "sudo pacman"
-        cmd = [helper, "-S"]
-        if "yay" in helper or "paru" in helper:
-            cmd += ["--nodiffmenu", "--nocleanmenu", "--noeditmenu", "--answerclean", "None", "--answerdiff", "None"]
-        cmd.append(pkg)
+        helper, extra_flags = get_update_helper()
+        cmd = [helper, "-S"] + extra_flags + [pkg]
         os.execvp(helper, cmd)
         return
 
