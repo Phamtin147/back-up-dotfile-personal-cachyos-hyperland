@@ -1014,15 +1014,17 @@ ShellRoot {
     /** Keys that apply while the region is still being chosen. */
     function selectKey(e) {
         if (e.key === Qt.Key_Space || e.key === Qt.Key_Return || e.key === Qt.Key_Enter) {
-            if (!root.hasExplicitSel && !root.hoverTarget) {
+            if (!root.globalSel && !root.hoverWindow) {
+                root.restoreLastSelection();
+            }
+            if (!root.globalSel) {
                 root.wholeMonitor();
             }
             root.doCopyAndSave();
             return true;
         }
-        if (e.key === Qt.Key_L && Config.lastSel && Config.lastSel.w > 10 && Config.lastSel.h > 10) {
-            root.globalSel = Config.lastSel;
-            root.phase = "editing";
+        if (e.key === Qt.Key_L) {
+            root.restoreLastSelection();
             return true;
         }
         if (e.key === Qt.Key_A && (e.modifiers & Qt.ControlModifier)) { root.wholeMonitor(); return true; }

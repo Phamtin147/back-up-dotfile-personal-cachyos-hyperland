@@ -95,7 +95,7 @@ hl.bind(K(mod .. " + M"),         hl.dsp.exec_cmd("wl-mirror eDP-1"))
 
 -- Screenshots (Interactive Layer-Shell Overlay: Ryoshot)
 hl.bind(K("Print"),               hl.dsp.exec_cmd("flock -n -o /tmp/ryoshot.lock qs -c ryoshot"))
-hl.bind(K(" ALT + S"),         hl.dsp.exec_cmd("flock -n -o /tmp/ryoshot.lock qs -c ryoshot"))
+hl.bind(K("ALT + S"),              hl.dsp.exec_cmd("flock -n -o /tmp/ryoshot.lock qs -c ryoshot"))
 hl.bind(K("CTRL + SHIFT + 2"),    hl.dsp.exec_cmd("flock -n -o /tmp/ryoshot.lock env RYOSHOT_MODE=monitor qs -c ryoshot"))
 hl.bind(K("CTRL + SHIFT + 3"),    hl.dsp.exec_cmd("flock -n -o /tmp/ryoshot.lock env RYOSHOT_MODE=window qs -c ryoshot"))
 
