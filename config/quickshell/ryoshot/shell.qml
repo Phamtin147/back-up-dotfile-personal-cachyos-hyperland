@@ -165,16 +165,30 @@ ShellRoot {
         onTriggered: { Config.toolStyle = root.toolStyle; Config.save(); }
     }
 
+    function restoreLastSelection() {
+        if (!root.openPath && Config.lastSel && typeof Config.lastSel === "object"
+                && Config.lastSel.w > 10 && Config.lastSel.h > 10) {
+            var s = Config.lastSel;
+            var scr = Quickshell.screens;
+            var sw = (scr && scr.length > 0 && scr[0].width) ? scr[0].width : 1536;
+            var sh = (scr && scr.length > 0 && scr[0].height) ? scr[0].height : 960;
+            var w = Math.min(s.w, sw);
+            var h = Math.min(s.h, sh);
+            var x = Math.max(0, Math.min(sw - w, s.x));
+            var y = Math.max(0, Math.min(sh - h, s.y));
+
+            root.globalSel = { x: x, y: y, w: w, h: h };
+            root.phase = "editing";
+        }
+    }
+
     Connections {
         target: Config
         function onLoaded() {
             if (Config.toolStyle && typeof Config.toolStyle === "object")
                 root.toolStyle = Config.toolStyle;
             root.selectTool(root.activeTool);
-            if (!root.openPath && Config.lastSel && Config.lastSel.w > 10 && Config.lastSel.h > 10) {
-                root.globalSel = Config.lastSel;
-                root.phase = "editing";
-            }
+            root.restoreLastSelection();
         }
     }
 
@@ -192,7 +206,16 @@ ShellRoot {
         beautifySrc = path;
         phase = "beautify";
     }
-    Component.onCompleted: if (openPath.length > 0) openForBeautify(openPath);
+    Component.onCompleted: {
+        if (openPath.length > 0) {
+            openForBeautify(openPath);
+        } else if (Config.isLoaded || (Config.lastSel && Config.lastSel.w > 10)) {
+            if (Config.toolStyle && typeof Config.toolStyle === "object")
+                root.toolStyle = Config.toolStyle;
+            root.selectTool(root.activeTool);
+            root.restoreLastSelection();
+        }
+    }
 
     function beginSelection(gx, gy) {
         pressPoint = { x: gx, y: gy };
@@ -208,11 +231,17 @@ ShellRoot {
     function endSelection() {
         capturing = false;
         pressPoint = null;
-        if (globalSel && globalSel.w > 2 && globalSel.h > 2) { phase = "editing"; hoverWindow = null; Config.lastSel = globalSel; Config.save(); }
-        else if (hoverWindow) {
+        if (globalSel && globalSel.w > 2 && globalSel.h > 2) {
+            phase = "editing";
+            hoverWindow = null;
+            Config.lastSel = { x: globalSel.x, y: globalSel.y, w: globalSel.w, h: globalSel.h };
+            Config.save();
+        } else if (hoverWindow) {
             globalSel = { x: hoverWindow.x, y: hoverWindow.y, w: hoverWindow.w, h: hoverWindow.h };
             phase = "editing";
             hoverWindow = null;
+            Config.lastSel = { x: globalSel.x, y: globalSel.y, w: globalSel.w, h: globalSel.h };
+            Config.save();
         } else globalSel = null;
     }
 
@@ -222,7 +251,13 @@ ShellRoot {
         if (resizing === null || !globalSel) return;
         globalSel = Hit.resizeRect(globalSel, resizing, gx, gy, 8);
     }
-    function endResize() { resizing = null; }
+    function endResize() {
+        resizing = null;
+        if (globalSel && globalSel.w > 10 && globalSel.h > 10) {
+            Config.lastSel = { x: globalSel.x, y: globalSel.y, w: globalSel.w, h: globalSel.h };
+            Config.save();
+        }
+    }
 
     function clampToSel(gx, gy) {
         var x = Math.max(globalSel.x, Math.min(gx, globalSel.x + globalSel.w));
@@ -634,6 +669,10 @@ ShellRoot {
     function copyImageAndQuit(file) {
         if (root.exported) return;
         root.exported = true;
+        if (root.globalSel && root.globalSel.w > 10 && root.globalSel.h > 10) {
+            Config.lastSel = { x: root.globalSel.x, y: root.globalSel.y, w: root.globalSel.w, h: root.globalSel.h };
+            Config.save();
+        }
         Quickshell.execDetached(["ryoku-shell", "clip-copy", "image/png", file]);
         if (Config.copyOnSave) {
             Quickshell.execDetached(["sh", "-c",
@@ -645,6 +684,10 @@ ShellRoot {
     function copyTextAndQuit(text) {
         if (root.exported) return;
         root.exported = true;
+        if (root.globalSel && root.globalSel.w > 10 && root.globalSel.h > 10) {
+            Config.lastSel = { x: root.globalSel.x, y: root.globalSel.y, w: root.globalSel.w, h: root.globalSel.h };
+            Config.save();
+        }
         Quickshell.execDetached(["sh", "-c",
             "f=$(mktemp); printf %s \"$1\" > \"$f\"; ryoku-shell clip-copy text/plain \"$f\"; rm -f \"$f\"", "sh", text]);
         root.quitSoon();
@@ -654,6 +697,10 @@ ShellRoot {
     function saveToScreenshots(src) {
         if (root.exported) return;
         root.exported = true;
+        if (root.globalSel && root.globalSel.w > 10 && root.globalSel.h > 10) {
+            Config.lastSel = { x: root.globalSel.x, y: root.globalSel.y, w: root.globalSel.w, h: root.globalSel.h };
+            Config.save();
+        }
         var dest = root.defaultPath;
         Quickshell.execDetached(["sh", "-c",
             "mkdir -p \"$(dirname \"$2\")\"; [ \"$1\" = \"$2\" ] || cp -- \"$1\" \"$2\"", "sh", src, dest]);

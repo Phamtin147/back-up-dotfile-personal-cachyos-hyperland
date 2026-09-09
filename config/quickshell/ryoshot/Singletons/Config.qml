@@ -13,6 +13,8 @@ Singleton {
     property string saveDir: ""
     property var lastSel: null
 
+    property bool isLoaded: false
+
     property var toolStyle: ({})
     signal loaded()
 
@@ -47,6 +49,7 @@ Singleton {
     FileView {
         id: store
         path: config.path
+        blockLoading: true
         atomicWrites: true
         printErrors: false
         onLoaded: {
@@ -62,6 +65,7 @@ Singleton {
             } catch (e) {
                 console.log("ryoshot: config parse failed, using defaults: " + e);
             }
+            config.isLoaded = true;
             config.loaded();
         }
 
