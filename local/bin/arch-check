@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-arch-check: Smart package update inspector for Arch Linux / CachyOS.
+arch-check: Smart package update inspector & safe app updater for Arch Linux / CachyOS.
 Categorizes updates into User Applications (GUI/CLI) vs System Libraries.
-100% safe: never installs or touches packages without explicit user request.
+100% safe: never updates system kernel or core without explicit user request.
 """
 
 from __future__ import annotations
@@ -39,7 +39,7 @@ COMMON_APPS_HINTS = {
     "lazygit", "neovim", "helix", "micro", "nautilus", "thunar", "dolphin",
     "libreoffice", "wps-office", "obsidian", "postman", "dbeaver", "gpu-screen-recorder",
     "fcitx5", "fcitx5-bamboo", "fcitx5-configtool", "fuzzel", "rofi", "wofi", "waybar",
-    "hyprland", "niri", "sway", "flatpak", "brightnessctl", "pavucontrol", "7zip"
+    "hyprland", "niri", "sway", "flatpak", "brightnessctl", "pavucontrol", "7zip", "yazi"
 }
 
 SYSTEM_LIB_PREFIXES = (
@@ -95,7 +95,6 @@ def scan_repo_updates() -> list[PkgUpdate]:
             line = line.strip()
             if not line:
                 continue
-            # Format: pkgname old_version -> new_version
             m = re.match(r"^(\S+)\s+(\S+)\s+->\s+(\S+)", line)
             if m:
                 pkg_name, old_ver, new_ver = m.groups()
@@ -117,7 +116,6 @@ def scan_aur_updates() -> list[PkgUpdate]:
             line = line.strip()
             if not line:
                 continue
-            # Format: pkgname old_version -> new_version [time]
             m = re.match(r"^(\S+)\s+(\S+)\s+->\s+(\S+)", line)
             if m:
                 pkg_name, old_ver, new_ver = m.groups()
@@ -128,24 +126,53 @@ def scan_aur_updates() -> list[PkgUpdate]:
         pass
     return updates
 
+def perform_update_apps(apps: list[PkgUpdate]):
+    if not apps:
+        print(f"\n{BOLD}{GREEN}✨ Tất cả ứng dụng người dùng đã ở phiên bản mới nhất! (Không cần update){RESET}\n")
+        return
+
+    helper = shutil.which("yay") or shutil.which("paru") or "sudo pacman"
+    pkg_names = [a.name for a in apps]
+
+    print(f"\n{BOLD}{CYAN}🚀 Chuẩn bị cập nhật {len(pkg_names)} ứng dụng người dùng:{RESET}\n")
+    for app in apps:
+        tag = f"{MAGENTA}[AUR]{RESET}" if app.source == "AUR" else f"{BLUE}[Repo]{RESET}"
+        print(f"  {tag} {BOLD}{WHITE}{app.name:<26}{RESET} {RED}{app.old_version}{RESET} {DIM}→{RESET} {GREEN}{app.new_version}{RESET}")
+
+    print(f"\n{DIM}{'─' * 60}{RESET}")
+    print(f"{BOLD}Lệnh thực thi:{RESET} {YELLOW}{helper} -S {' '.join(pkg_names)}{RESET}\n")
+
+    try:
+        ans = input(f"{BOLD}👉 Bạn có muốn tiến hành cập nhật danh sách ứng dụng này không? [Y/n]: {RESET}").strip().lower()
+        if ans in ("", "y", "yes", "có", "c"):
+            os.system(f"{helper} -S {' '.join(pkg_names)}")
+        else:
+            print(f"\n{YELLOW}Đã hủy cập nhật.{RESET}\n")
+    except KeyboardInterrupt:
+        print(f"\n{YELLOW}\nĐã hủy.{RESET}\n")
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Smart Arch / CachyOS package update checker (Apps vs System categorization)"
+        description="Smart Arch / CachyOS package update checker & safe app updater"
     )
     parser.add_argument("--apps", action="store_true", help="Only show User Applications (GUI & CLI tools)")
     parser.add_argument("--aur", action="store_true", help="Only show AUR package updates")
     parser.add_argument("--update", "-u", metavar="PKG", help="Safely update a specific package using yay/pacman")
+    parser.add_argument(
+        "--update-apps", "-ua", "-U", action="store_true",
+        help="Update ALL user applications safely without updating kernel or core system packages"
+    )
     args = parser.parse_args()
 
     if args.update:
         pkg = args.update
         helper = shutil.which("yay") or shutil.which("paru") or "sudo pacman"
-        print(f"\n{BOLD}{CYAN}🚀 Upgrading single package:{RESET} {BOLD}{GREEN}{pkg}{RESET} via {helper}...\n")
+        print(f"\n{BOLD}{CYAN}🚀 Nâng cấp ứng dụng:{RESET} {BOLD}{GREEN}{pkg}{RESET} qua {helper}...\n")
         cmd = f"{helper} -S {pkg}"
         os.system(cmd)
         return
 
-    print(f"\n{BOLD}{CYAN}🔍 Scanning for available updates (Repo & AUR)...{RESET}\n")
+    print(f"\n{BOLD}{CYAN}🔍 Đang quét các bản cập nhật có sẵn (Repo & AUR)...{RESET}\n")
 
     with ThreadPoolExecutor(max_workers=2) as ex:
         f_repo = ex.submit(scan_repo_updates)
@@ -154,13 +181,18 @@ def main():
         aur_updates = f_aur.result()
 
     all_updates = repo_updates + aur_updates
+    apps = [u for u in all_updates if u.is_app]
+
+    if args.update_apps:
+        perform_update_apps(apps)
+        return
+
     if not all_updates:
         print(f"{BOLD}{GREEN}✨ Hệ thống của bạn đã được cập nhật hoàn toàn mới nhất! (0 updates){RESET}\n")
         return
 
     ignored_pkgs = get_ignored_packages()
 
-    apps = [u for u in all_updates if u.is_app]
     aur_only = [u for u in all_updates if u.source == "AUR"]
     system_libs = [u for u in all_updates if not u.is_app and not u.is_kernel]
     kernels = [u for u in all_updates if u.is_kernel]
@@ -205,7 +237,9 @@ def main():
         f"{BOLD}📊 Tổng kết:{RESET} {BOLD}{GREEN}{len(all_updates)}{RESET} bản cập nhật "
         f"({CYAN}{len(apps)}{RESET} ứng dụng, {MAGENTA}{len(aur_updates)}{RESET} AUR, {BLUE}{len(system_libs)}{RESET} thư viện hệ thống)."
     )
-    print(f"{DIM}💡 Để chỉ nâng cấp 1 ứng dụng cụ thể: {YELLOW}arch-check -u <tên_app>{RESET}\n")
+    print(f"{BOLD}💡 Lệnh cập nhật nhanh:{RESET}")
+    print(f"  • Cập nhật tất cả ứng dụng:     {GREEN}arch-check -U{RESET}   (hoặc {GREEN}update-apps{RESET})")
+    print(f"  • Cập nhật 1 ứng dụng cụ thể:   {YELLOW}arch-check -u <tên_app>{RESET}\n")
 
 if __name__ == "__main__":
     main()
