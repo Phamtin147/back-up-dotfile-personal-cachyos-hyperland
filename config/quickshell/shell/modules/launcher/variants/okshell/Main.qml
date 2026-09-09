@@ -71,8 +71,8 @@ Scope {
     // ── tokens ──────────────────────────────────────────────────────────────
     // the sidebar's push: a clean positional slide, no spring and no scale.
     // Mirrors Motion.push / Motion.pushCurve in the pill's Singletons.
-    readonly property int pushMs: 420
-    readonly property int pushCurve: Easing.OutQuint
+    readonly property int pushMs: 140
+    readonly property int pushCurve: Easing.OutQuad
     readonly property var spring: [0.38, 1.21, 0.22, 1, 1, 1]
 
     readonly property int rad: 14
@@ -232,18 +232,15 @@ Scope {
                 width: root.panelW
                 height: root.barH + 10 + root.panelH
                 anchors.horizontalCenter: parent.horizontalCenter
-                y: root.openRequested ? root.restY : -(root.barH + 10 + root.maxPanelH + 60)
+                y: root.restY
                 opacity: win.p
-                scale: 0.96 + 0.04 * win.p
+                scale: 0.98 + 0.02 * win.p
 
-                Behavior on y {
-                    NumberAnimation { duration: root.pushMs; easing.type: root.pushCurve }
-                }
                 Behavior on opacity {
-                    NumberAnimation { duration: 180 }
+                    NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
                 }
                 Behavior on scale {
-                    NumberAnimation { duration: root.pushMs; easing.type: root.pushCurve }
+                    NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
                 }
 
                 // Prevent click on launcher card from dismissing
