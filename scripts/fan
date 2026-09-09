@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# MacBook T2 Fan Control Tool
+
+DIR="/sys/devices/LNXSYSTM:00/LNXSYBUS:00/PNP0A08:00/device:104/APP0001:00"
+
+if [ ! -d "$DIR" ]; then
+    DIR=$(find /sys/devices/ -name "fan1_manual" 2>/dev/null | head -n 1 | xargs dirname)
+fi
+
+cmd="${1:-status}"
+
+case "$cmd" in
+    max|full|100)
+        echo ":: Đang bật quạt MAX SPEED (Full blast)..."
+        # Stop t2fanrd to prevent it from overriding manual speed
+        sudo systemctl stop t2fanrd.service 2>/dev/null || true
+        
+        MAX1=$(cat "$DIR/fan1_max" 2>/dev/null || echo 5616)
+        MAX2=$(cat "$DIR/fan2_max" 2>/dev/null || echo 5200)
+        
+        echo 1 | sudo tee "$DIR/fan1_manual" >/dev/null
+        echo "$MAX1" | sudo tee "$DIR/fan1_output" >/dev/null
+        echo 1 | sudo tee "$DIR/fan2_manual" >/dev/null
+        echo "$MAX2" | sudo tee "$DIR/fan2_output" >/dev/null
+        
+        echo "✓ Quạt 1 (Trái): $MAX1 RPM (Max)"
+        echo "✓ Quạt 2 (Phải): $MAX2 RPM (Max)"
+        ;;
+    auto|restore|default)
+        echo ":: Đang chuyển quạt về chế độ TỰ ĐỘNG (Auto thermal curve)..."
+        echo 0 | sudo tee "$DIR/fan1_manual" >/dev/null 2>&1 || true
+        echo 0 | sudo tee "$DIR/fan2_manual" >/dev/null 2>&1 || true
+        sudo systemctl restart t2fanrd.service 2>/dev/null || true
+        echo "✓ Đã bật lại chế độ tự động điều tốc theo nhiệt độ (t2fanrd)"
+        ;;
+    status|info|"")
+        echo "=== T2 FAN & TEMPERATURE STATUS ==="
+        F1_CUR=$(cat "$DIR/fan1_input" 2>/dev/null || echo 0)
+        F1_MAX=$(cat "$DIR/fan1_max" 2>/dev/null || echo 5616)
+        F2_CUR=$(cat "$DIR/fan2_input" 2>/dev/null || echo 0)
+        F2_MAX=$(cat "$DIR/fan2_max" 2>/dev/null || echo 5200)
+        MODE1=$(cat "$DIR/fan1_manual" 2>/dev/null || echo 0)
+        
+        echo "Quạt 1 (Trái): $F1_CUR RPM / Max $F1_MAX RPM ($([ "$MODE1" = "1" ] && echo "MANUAL" || echo "AUTO"))"
+        echo "Quạt 2 (Phải): $F2_CUR RPM / Max $F2_MAX RPM ($([ "$MODE1" = "1" ] && echo "MANUAL" || echo "AUTO"))"
+        echo "-----------------------------------"
+        sensors coretemp-isa-0000 2>/dev/null | grep -E "Package id 0|Core" | head -n 5
+        ;;
+    *)
+        echo "Cách dùng:"
+        echo "  fan max      - Bật quạt tốc độ tối đa (100% max RPM)"
+        echo "  fan auto     - Trả về tự động điều tốc theo nhiệt độ"
+        echo "  fan status   - Xem tốc độ quạt và nhiệt độ hiện tại"
+        ;;
+esac
