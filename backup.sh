@@ -99,6 +99,7 @@ CONFIG_ITEMS=(
     "vesktop"
     "voxtype"
     "zed"
+    "xdg-desktop-portal"
 )
 
 for item in "${CONFIG_ITEMS[@]}"; do

@@ -365,6 +365,7 @@
       "claude": false,
       "cpu": true,
       "cpuTemperature": true,
+      "docker": true,
       "gpu": true,
       "media": false,
       "memory": true,
@@ -375,8 +376,7 @@
       "status": false,
       "storage": true,
       "volume": true,
-      "weather": true,
-      "docker": true
+      "weather": true
     },
     "workspaceMode": "active",
     "workspaceStyle": "magic"

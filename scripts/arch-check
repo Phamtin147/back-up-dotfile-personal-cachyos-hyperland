@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""
+arch-check: Smart package update inspector & safe app updater for Arch Linux / CachyOS.
+Categorizes updates into User Applications (GUI/CLI) vs System Libraries.
+100% safe: never updates system kernel or core without explicit user request.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from pathlib import Path
+
+# ANSI colors
+RESET = "\033[0m"
+BOLD = "\033[1m"
+DIM = "\033[2m"
+RED = "\033[31m"
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+BLUE = "\033[34m"
+MAGENTA = "\033[35m"
+CYAN = "\033[36m"
+WHITE = "\033[37m"
+ORANGE = "\033[38;5;208m"
+
+COMMON_APPS_HINTS = {
+    "code", "visual-studio-code", "antigravity", "zen-browser", "firefox", "chromium",
+    "google-chrome", "brave-bin", "telegram", "discord", "spotify", "localsend",
+    "gimp", "inkscape", "blender", "vlc", "mpv", "obs-studio", "kitty", "alacritty",
+    "wezterm", "foot", "fastfetch", "neofetch", "btop", "htop", "nvtop", "fish",
+    "zsh", "tmux", "zellij", "git", "github-cli", "docker", "docker-compose",
+    "lazygit", "neovim", "helix", "micro", "nautilus", "thunar", "dolphin",
+    "libreoffice", "wps-office", "obsidian", "postman", "dbeaver", "gpu-screen-recorder",
+    "fcitx5", "fcitx5-bamboo", "fcitx5-configtool", "fuzzel", "rofi", "wofi", "waybar",
+    "hyprland", "niri", "sway", "flatpak", "brightnessctl", "pavucontrol", "7zip", "yazi"
+}
+
+SYSTEM_LIB_PREFIXES = (
+    "lib", "glibc", "gcc", "clang", "llvm", "boost", "qt5", "qt6", "gtk", "pango",
+    "cairo", "gstreamer", "gst-", "mesa", "vulkan", "pipewire", "wireplumber",
+    "alsa-", "systemd", "udev", "wayland", "xorg-", "xcb", "icu", "openssl", "gnutls",
+    "python-", "perl-", "ruby-", "lua-", "haskell-", "nodejs-", "npm-", "bpf"
+)
+
+@dataclass
+class PkgUpdate:
+    name: str
+    old_version: str
+    new_version: str
+    source: str  # "Repo" or "AUR"
+    is_app: bool = False
+    is_kernel: bool = False
+
+def get_ignored_packages() -> set[str]:
+    ignored = set()
+    pacman_conf = Path("/etc/pacman.conf")
+    if pacman_conf.exists():
+        try:
+            for line in pacman_conf.read_text().splitlines():
+                line = line.strip()
+                if line.startswith("IgnorePkg") and "=" in line:
+                    _, _, pkgs = line.partition("=")
+                    for p in pkgs.split():
+                        ignored.add(p.strip())
+        except Exception:
+            pass
+    return ignored
+
+def is_user_app(name: str) -> bool:
+    lname = name.lower()
+    clean_name = re.sub(r"(-bin|-git|-appimage|-gtk)$", "", lname)
+    if clean_name in COMMON_APPS_HINTS or lname in COMMON_APPS_HINTS:
+        return True
+    if any(lname.startswith(p) for p in ("visual-studio", "zen-", "google-", "firefox-", "telegram-", "discord-", "fcitx5-")):
+        return True
+    if any(lname.startswith(p) for p in SYSTEM_LIB_PREFIXES):
+        return False
+    # Check if has .desktop file or binary in /usr/bin with identical name
+    if Path(f"/usr/share/applications/{name}.desktop").exists() or Path(f"/usr/share/applications/{clean_name}.desktop").exists():
+        return True
+    return False
+
+def scan_repo_updates() -> list[PkgUpdate]:
+    updates = []
+    try:
+        res = subprocess.run(["checkupdates"], capture_output=True, text=True, check=False)
+        for line in res.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            m = re.match(r"^(\S+)\s+(\S+)\s+->\s+(\S+)", line)
+            if m:
+                pkg_name, old_ver, new_ver = m.groups()
+                is_k = "linux" in pkg_name or "kernel" in pkg_name or pkg_name.startswith("linux-")
+                is_app = is_user_app(pkg_name)
+                updates.append(PkgUpdate(pkg_name, old_ver, new_ver, "Repo", is_app=is_app, is_kernel=is_k))
+    except Exception:
+        pass
+    return updates
+
+def scan_aur_updates() -> list[PkgUpdate]:
+    updates = []
+    helper = shutil.which("yay") or shutil.which("paru")
+    if not helper:
+        return updates
+    try:
+        res = subprocess.run([helper, "-Qua"], capture_output=True, text=True, check=False)
+        for line in res.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            m = re.match(r"^(\S+)\s+(\S+)\s+->\s+(\S+)", line)
+            if m:
+                pkg_name, old_ver, new_ver = m.groups()
+                is_k = "linux" in pkg_name or "kernel" in pkg_name
+                is_app = is_user_app(pkg_name)
+                updates.append(PkgUpdate(pkg_name, old_ver, new_ver, "AUR", is_app=is_app, is_kernel=is_k))
+    except Exception:
+        pass
+    return updates
+
+def perform_update_apps(apps: list[PkgUpdate]):
+    if not apps:
+        print(f"\n{BOLD}{GREEN}✨ Tất cả ứng dụng người dùng đã ở phiên bản mới nhất! (Không cần update){RESET}\n")
+        return
+
+    helper = shutil.which("yay") or shutil.which("paru") or "sudo pacman"
+    pkg_names = [a.name for a in apps]
+
+    print(f"\n{BOLD}{CYAN}🚀 Chuẩn bị cập nhật {len(pkg_names)} ứng dụng người dùng:{RESET}\n")
+    for app in apps:
+        tag = f"{MAGENTA}[AUR]{RESET}" if app.source == "AUR" else f"{BLUE}[Repo]{RESET}"
+        print(f"  {tag} {BOLD}{WHITE}{app.name:<26}{RESET} {RED}{app.old_version}{RESET} {DIM}→{RESET} {GREEN}{app.new_version}{RESET}")
+
+    print(f"\n{DIM}{'─' * 60}{RESET}")
+    print(f"{BOLD}Lệnh thực thi:{RESET} {YELLOW}{helper} -S {' '.join(pkg_names)}{RESET}\n")
+
+    try:
+        ans = input(f"{BOLD}👉 Bạn có muốn tiến hành cập nhật danh sách ứng dụng này không? [Y/n]: {RESET}").strip().lower()
+        if ans in ("", "y", "yes", "có", "c"):
+            os.system(f"{helper} -S {' '.join(pkg_names)}")
+        else:
+            print(f"\n{YELLOW}Đã hủy cập nhật.{RESET}\n")
+    except KeyboardInterrupt:
+        print(f"\n{YELLOW}\nĐã hủy.{RESET}\n")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Smart Arch / CachyOS package update checker & safe app updater"
+    )
+    parser.add_argument("--apps", action="store_true", help="Only show User Applications (GUI & CLI tools)")
+    parser.add_argument("--aur", action="store_true", help="Only show AUR package updates")
+    parser.add_argument("--update", "-u", metavar="PKG", help="Safely update a specific package using yay/pacman")
+    parser.add_argument(
+        "--update-apps", "-ua", "-U", action="store_true",
+        help="Update ALL user applications safely without updating kernel or core system packages"
+    )
+    args = parser.parse_args()
+
+    if args.update:
+        pkg = args.update
+        helper = shutil.which("yay") or shutil.which("paru") or "sudo pacman"
+        print(f"\n{BOLD}{CYAN}🚀 Nâng cấp ứng dụng:{RESET} {BOLD}{GREEN}{pkg}{RESET} qua {helper}...\n")
+        cmd = f"{helper} -S {pkg}"
+        os.system(cmd)
+        return
+
+    print(f"\n{BOLD}{CYAN}🔍 Đang quét các bản cập nhật có sẵn (Repo & AUR)...{RESET}\n")
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_repo = ex.submit(scan_repo_updates)
+        f_aur = ex.submit(scan_aur_updates)
+        repo_updates = f_repo.result()
+        aur_updates = f_aur.result()
+
+    all_updates = repo_updates + aur_updates
+    apps = [u for u in all_updates if u.is_app]
+
+    if args.update_apps:
+        perform_update_apps(apps)
+        return
+
+    if not all_updates:
+        print(f"{BOLD}{GREEN}✨ Hệ thống của bạn đã được cập nhật hoàn toàn mới nhất! (0 updates){RESET}\n")
+        return
+
+    ignored_pkgs = get_ignored_packages()
+
+    aur_only = [u for u in all_updates if u.source == "AUR"]
+    system_libs = [u for u in all_updates if not u.is_app and not u.is_kernel]
+    kernels = [u for u in all_updates if u.is_kernel]
+
+    target_list = all_updates
+    if args.apps:
+        target_list = apps
+    elif args.aur:
+        target_list = aur_only
+
+    def print_section(title: str, icon: str, color: str, items: list[PkgUpdate]):
+        if not items:
+            return
+        print(f"{BOLD}{color}{icon} {title} ({len(items)}){RESET}")
+        print(f"{DIM}{'─' * 70}{RESET}")
+        max_name_len = max(len(u.name) for u in items)
+        max_name_len = min(max(max_name_len + 2, 24), 36)
+
+        for u in items:
+            tag = f"{MAGENTA}[AUR]{RESET}" if u.source == "AUR" else f"{BLUE}[Repo]{RESET}"
+            is_held = u.name in ignored_pkgs or any(u.name.startswith(p.replace("*", "")) for p in ignored_pkgs)
+            held_tag = f" {ORANGE}[HELD/LOCKED]{RESET}" if is_held else ""
+
+            name_fmt = f"{BOLD}{WHITE}{u.name:<{max_name_len}}{RESET}"
+            ver_fmt = f"{RED}{u.old_version}{RESET} {DIM}→{RESET} {GREEN}{u.new_version}{RESET}"
+            print(f"  {tag} {name_fmt} {ver_fmt}{held_tag}")
+        print()
+
+    if not args.apps and not args.aur:
+        print_section("Ứng dụng người dùng (User Applications)", "📦", CYAN, apps)
+        print_section("Gói nguồn cộng đồng (AUR Packages)", "⭐", MAGENTA, [u for u in aur_only if not u.is_app])
+        print_section("Thư viện & Tiện ích hệ thống (System & Libraries)", "⚙️", BLUE, system_libs)
+        if kernels:
+            print_section("Nhân Linux / Kernel (Được bảo vệ)", "🛡️", ORANGE, kernels)
+    elif args.apps:
+        print_section("Ứng dụng người dùng (User Applications)", "📦", CYAN, apps)
+    elif args.aur:
+        print_section("Gói nguồn cộng đồng (AUR Packages)", "⭐", MAGENTA, aur_only)
+
+    print(f"{DIM}{'═' * 70}{RESET}")
+    print(
+        f"{BOLD}📊 Tổng kết:{RESET} {BOLD}{GREEN}{len(all_updates)}{RESET} bản cập nhật "
+        f"({CYAN}{len(apps)}{RESET} ứng dụng, {MAGENTA}{len(aur_updates)}{RESET} AUR, {BLUE}{len(system_libs)}{RESET} thư viện hệ thống)."
+    )
+    print(f"{BOLD}💡 Lệnh cập nhật nhanh:{RESET}")
+    print(f"  • Cập nhật tất cả ứng dụng:     {GREEN}arch-check -U{RESET}   (hoặc {GREEN}update-apps{RESET})")
+    print(f"  • Cập nhật 1 ứng dụng cụ thể:   {YELLOW}arch-check -u <tên_app>{RESET}\n")
+
+if __name__ == "__main__":
+    main()

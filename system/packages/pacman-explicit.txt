@@ -82,6 +82,7 @@ intel-ucode
 inter-font
 iw
 iwd
+jdk17-openjdk
 jq
 kitty
 lazygit
@@ -167,7 +168,6 @@ snap-pac
 snapper
 sof-firmware
 songrec
-spicetify-cli
 spotify-launcher
 starship
 sudo

@@ -9,6 +9,7 @@ nvibrant-bin
 phinger-cursors
 qdirstat
 rtl8851bu-dkms-git
+spicetify-cli
 ttf-fraunces-variable
 tzupdate
 visual-studio-code-bin
