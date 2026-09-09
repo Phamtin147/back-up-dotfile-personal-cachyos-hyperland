@@ -11,7 +11,7 @@ case "$CHOICE" in
         systemctl suspend
         ;;
     *"Log Out"*)
-        hyprctl dispatch exit 0
+        hyprctl dispatch exit || loginctl terminate-session ${XDG_SESSION_ID:-self} || loginctl terminate-user $USER
         ;;
     *"Reboot"*)
         systemctl reboot

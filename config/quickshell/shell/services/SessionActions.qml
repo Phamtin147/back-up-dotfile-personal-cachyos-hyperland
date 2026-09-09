@@ -16,11 +16,24 @@ Singleton {
 
     // action is one of "logout" | "reboot" | "shutdown"; the daemon validates it.
     function run(action) {
-        ctl.queued += "call session." + action + " {}\n";
-        if (ctl.connected)
-            ctl.flushQueued();
-        else
-            ctl.connected = true;
+        switch (action) {
+        case "logout":
+            Quickshell.execDetached(["sh", "-c", "hyprctl dispatch exit || loginctl terminate-session ${XDG_SESSION_ID:-self} || loginctl terminate-user $USER"]);
+            break;
+        case "reboot":
+            Quickshell.execDetached(["systemctl", "reboot"]);
+            break;
+        case "shutdown":
+            Quickshell.execDetached(["systemctl", "poweroff"]);
+            break;
+        default:
+            ctl.queued += "call session." + action + " {}\n";
+            if (ctl.connected)
+                ctl.flushQueued();
+            else
+                ctl.connected = true;
+            break;
+        }
     }
 
     Socket {
