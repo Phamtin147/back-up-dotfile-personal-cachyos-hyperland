@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ACTION="$1"
-STEP="${2:-5}"
+STEP="${2:-1}"
 
 if [ "$ACTION" = "up" ]; then
     brightnessctl -d gmux_backlight set "+${STEP}%" >/dev/null 2>&1

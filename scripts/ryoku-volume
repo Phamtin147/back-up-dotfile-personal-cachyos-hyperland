@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cfg="${XDG_CONFIG_HOME:-$HOME/.config}/ryoku/shell.json"
+lim=1
+if [ -f "$cfg" ] && jq -e '.qsbar.audioBoost == true' "$cfg" >/dev/null 2>&1; then
+	lim=1.5
+fi
+
+cur="$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{printf "%d", $2 * 100 + 0.5}')"
+max="$(awk -v l="$lim" 'BEGIN{printf "%d", l * 100 + 0.5}')"
+step=1
+
+case "${1:-up}" in
+up)
+	next=$((cur + step))
+	;;
+down)
+	next=$((cur - step))
+	;;
+*)
+	echo "usage: ryoku-volume {up|down}" >&2
+	exit 1
+	;;
+esac
+
+[ "$next" -lt 0 ] && next=0
+[ "$next" -gt "$max" ] && next="$max"
+
+exec wpctl set-volume -l "$lim" @DEFAULT_AUDIO_SINK@ "${next}%"
