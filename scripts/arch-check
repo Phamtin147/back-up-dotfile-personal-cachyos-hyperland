@@ -316,10 +316,10 @@ class UpdateTUI:
 
 def get_update_helper() -> tuple[str, list[str]]:
     if shutil.which("paru"):
-        return "paru", ["--skipreview"]
+        return "paru", ["--skipreview", "--noconfirm"]
     elif shutil.which("yay"):
-        return "yay", ["--nodiffmenu", "--nocleanmenu", "--noeditmenu", "--answerclean", "None", "--answerdiff", "None"]
-    return "sudo pacman", []
+        return "yay", ["--nodiffmenu", "--nocleanmenu", "--noeditmenu", "--answerclean", "None", "--answerdiff", "None", "--noconfirm"]
+    return "sudo pacman", ["--noconfirm"]
 
 def execute_update(pkg_names: list[str]):
     if not pkg_names:
