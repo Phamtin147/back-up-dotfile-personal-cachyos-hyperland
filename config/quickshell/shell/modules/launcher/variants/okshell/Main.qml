@@ -9,6 +9,7 @@ import Quickshell.Io
 import shell.services
 import "../../../../services/lib/screens.js" as Screens
 import Ryoku.Ui.Singletons
+import "../../shared/Singletons"
 
 // OkShell's applications-only launcher in Ryoku's live palette. It deliberately
 // stays independent of the shared command-palette providers.
@@ -111,12 +112,10 @@ Scope {
         interval: root.pushMs
     }
 
-    // sorted once per catalogue/visibility change, not per keystroke
+    // sorted by recent usage and search match quality
     readonly property var catalogue: {
         const all = DesktopEntries.applications.values
             .filter(a => root.showHidden || !a.noDisplay);
-        all.sort((a, b) => (a.name || "").toLowerCase()
-            .localeCompare((b.name || "").toLowerCase()));
         return all;
     }
     readonly property var rows: {
@@ -124,15 +123,29 @@ Scope {
         const q = root.query.trim().toLowerCase();
         const hit = q.length === 0
             ? all.slice()
-            : all.filter(a => (a.name || "").toLowerCase().includes(q));
+            : all.filter(a => {
+                const an = (a.name || "").toLowerCase();
+                const ag = (a.genericName || "").toLowerCase();
+                const ai = (a.id || "").toLowerCase();
+                return an.includes(q) || ag.includes(q) || ai.includes(q);
+            });
         hit.sort((a, b) => {
-            const an = (a.name || "").toLowerCase(), bn = (b.name || "").toLowerCase();
-            if (q.length > 0) {
+            const ua = Frecency.get(a.id) || 0;
+            const ub = Frecency.get(b.id) || 0;
+            if (q.length === 0) {
+                // When empty query: sort by recent usage first (descending), then alphabetically
+                if (ua !== ub) return ub - ua;
+                return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase());
+            } else {
+                // When searching:
+                // If both are exact/prefix matches vs substring matches
+                const an = (a.name || "").toLowerCase(), bn = (b.name || "").toLowerCase();
                 const ap = an.startsWith(q) ? 0 : 1, bp = bn.startsWith(q) ? 0 : 1;
-                if (ap !== bp)
-                    return ap - bp;
+                if (ap !== bp) return ap - bp;
+                // For matches with same prefix status, prioritize recent / frequently used apps
+                if (ua !== ub) return ub - ua;
+                return an.localeCompare(bn);
             }
-            return an.localeCompare(bn);
         });
         return hit;
     }
@@ -166,6 +179,7 @@ Scope {
         if (!e)
             return;
         root.hide();
+        Frecency.bump(e.id);
         AppLaunch.run(e, null);
     }
 
