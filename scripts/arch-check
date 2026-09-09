@@ -34,12 +34,19 @@ COMMON_APPS_HINTS = {
     "code", "visual-studio-code", "antigravity", "zen-browser", "firefox", "chromium",
     "google-chrome", "brave-bin", "telegram", "discord", "spotify", "localsend",
     "gimp", "inkscape", "blender", "vlc", "mpv", "obs-studio", "kitty", "alacritty",
-    "wezterm", "foot", "fastfetch", "neofetch", "btop", "htop", "nvtop", "fish",
+    "wezterm", "foot", "btop", "htop", "nvtop", "fish",
     "zsh", "tmux", "zellij", "git", "github-cli", "docker", "docker-compose",
     "lazygit", "neovim", "helix", "micro", "nautilus", "thunar", "dolphin",
     "libreoffice", "wps-office", "obsidian", "postman", "dbeaver", "gpu-screen-recorder",
     "fcitx5", "fcitx5-bamboo", "fcitx5-configtool", "fuzzel", "rofi", "wofi", "waybar",
-    "hyprland", "niri", "sway", "flatpak", "brightnessctl", "pavucontrol", "7zip", "yazi"
+    "flatpak", "brightnessctl", "pavucontrol", "7zip", "yazi"
+}
+
+EXCLUDED_FROM_APPS = {
+    "fastfetch", "neofetch", "hyprland", "hypridle", "hyprpicker", "hyprpaper",
+    "hyprlock", "hyprtoolkit", "hyprglass", "hypr-dynamic-cursors", "imgborders",
+    "ryoku", "ryoku-shell", "ryoku-desktop", "ryoku-hub", "ryoku-rashin",
+    "ryoku-hypr-plugins", "ryoku-cursors", "ryoku-blobs", "xdg-desktop-portal-hyprland"
 }
 
 SYSTEM_LIB_PREFIXES = (
@@ -76,6 +83,8 @@ def get_ignored_packages() -> set[str]:
 def is_user_app(name: str) -> bool:
     lname = name.lower()
     clean_name = re.sub(r"(-bin|-git|-appimage|-gtk)$", "", lname)
+    if clean_name in EXCLUDED_FROM_APPS or lname in EXCLUDED_FROM_APPS:
+        return False
     if clean_name in COMMON_APPS_HINTS or lname in COMMON_APPS_HINTS:
         return True
     if any(lname.startswith(p) for p in ("visual-studio", "zen-", "google-", "firefox-", "telegram-", "discord-", "fcitx5-")):
