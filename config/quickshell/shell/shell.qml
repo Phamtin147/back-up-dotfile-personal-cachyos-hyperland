@@ -27,6 +27,7 @@ import "modules/osd"
 import "modules/notifications"
 import "modules/capture"
 import "modules/confirm"
+import "modules/corners"
 
 /**
  * The single resident Ryoku shell instance.
@@ -166,6 +167,9 @@ ShellRoot {
                 modelData: perScreen.modelData
             }
             KeypressOverlay {
+                modelData: perScreen.modelData
+            }
+            ScreenCorners {
                 modelData: perScreen.modelData
             }
             // Shown only on the monitor whose frame bar raised it; the positive
