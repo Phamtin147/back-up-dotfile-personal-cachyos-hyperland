@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-arch-check: Smart package update inspector & safe app updater for Arch Linux / CachyOS.
-Categorizes updates into User Applications (GUI/CLI) vs System Libraries.
-100% safe: never updates system kernel or core without explicit user request.
+arch-check: Selective package update inspector and application updater for Arch Linux / CachyOS.
+Categorizes updates into User Applications vs System Libraries.
 """
 
 from __future__ import annotations
@@ -28,7 +27,6 @@ BLUE = "\033[34m"
 MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 WHITE = "\033[37m"
-ORANGE = "\033[38;5;208m"
 
 COMMON_APPS_HINTS = {
     "code", "visual-studio-code", "antigravity", "zen-browser", "firefox", "chromium",
@@ -91,7 +89,6 @@ def is_user_app(name: str) -> bool:
         return True
     if any(lname.startswith(p) for p in SYSTEM_LIB_PREFIXES):
         return False
-    # Check if has .desktop file or binary in /usr/bin with identical name
     if Path(f"/usr/share/applications/{name}.desktop").exists() or Path(f"/usr/share/applications/{clean_name}.desktop").exists():
         return True
     return False
@@ -137,51 +134,41 @@ def scan_aur_updates() -> list[PkgUpdate]:
 
 def perform_update_apps(apps: list[PkgUpdate]):
     if not apps:
-        print(f"\n{BOLD}{GREEN}✨ Tất cả ứng dụng người dùng đã ở phiên bản mới nhất! (Không cần update){RESET}\n")
+        print(f"{GREEN}==> All user applications are up to date.{RESET}")
         return
 
     helper = shutil.which("yay") or shutil.which("paru") or "sudo pacman"
     pkg_names = [a.name for a in apps]
 
-    print(f"\n{BOLD}{CYAN}🚀 Chuẩn bị cập nhật {len(pkg_names)} ứng dụng người dùng:{RESET}\n")
+    print(f"{BOLD}{BLUE}:: Updating {len(pkg_names)} user application(s):{RESET}")
     for app in apps:
-        tag = f"{MAGENTA}[AUR]{RESET}" if app.source == "AUR" else f"{BLUE}[Repo]{RESET}"
-        print(f"  {tag} {BOLD}{WHITE}{app.name:<26}{RESET} {RED}{app.old_version}{RESET} {DIM}→{RESET} {GREEN}{app.new_version}{RESET}")
+        tag = f"{MAGENTA}aur{RESET}" if app.source == "AUR" else f"{BLUE}core{RESET}"
+        print(f"   [{tag}] {BOLD}{app.name:<24}{RESET} {RED}{app.old_version}{RESET} -> {GREEN}{app.new_version}{RESET}")
+    print()
 
-    print(f"\n{DIM}{'─' * 60}{RESET}")
-    print(f"{BOLD}Lệnh thực thi:{RESET} {YELLOW}{helper} -S {' '.join(pkg_names)}{RESET}\n")
-
-    try:
-        ans = input(f"{BOLD}👉 Bạn có muốn tiến hành cập nhật danh sách ứng dụng này không? [Y/n]: {RESET}").strip().lower()
-        if ans in ("", "y", "yes", "có", "c"):
-            os.system(f"{helper} -S {' '.join(pkg_names)}")
-        else:
-            print(f"\n{YELLOW}Đã hủy cập nhật.{RESET}\n")
-    except KeyboardInterrupt:
-        print(f"\n{YELLOW}\nĐã hủy.{RESET}\n")
+    # Hand off execution immediately to yay/pacman
+    cmd = [helper, "-S"] + pkg_names
+    os.execvp(helper, cmd)
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Smart Arch / CachyOS package update checker & safe app updater"
+        description="Selective package update inspector and safe application updater."
     )
-    parser.add_argument("--apps", action="store_true", help="Only show User Applications (GUI & CLI tools)")
-    parser.add_argument("--aur", action="store_true", help="Only show AUR package updates")
-    parser.add_argument("--update", "-u", metavar="PKG", help="Safely update a specific package using yay/pacman")
+    parser.add_argument("--apps", action="store_true", help="Show only user application updates")
+    parser.add_argument("--aur", action="store_true", help="Show only AUR updates")
+    parser.add_argument("--update", "-u", metavar="PKG", help="Update a specific package")
     parser.add_argument(
         "--update-apps", "-ua", "-U", action="store_true",
-        help="Update ALL user applications safely without updating kernel or core system packages"
+        help="Directly update all user applications without touching kernel or system packages"
     )
     args = parser.parse_args()
 
     if args.update:
         pkg = args.update
         helper = shutil.which("yay") or shutil.which("paru") or "sudo pacman"
-        print(f"\n{BOLD}{CYAN}🚀 Nâng cấp ứng dụng:{RESET} {BOLD}{GREEN}{pkg}{RESET} qua {helper}...\n")
-        cmd = f"{helper} -S {pkg}"
-        os.system(cmd)
+        cmd = [helper, "-S", pkg]
+        os.execvp(helper, cmd)
         return
-
-    print(f"\n{BOLD}{CYAN}🔍 Đang quét các bản cập nhật có sẵn (Repo & AUR)...{RESET}\n")
 
     with ThreadPoolExecutor(max_workers=2) as ex:
         f_repo = ex.submit(scan_repo_updates)
@@ -197,58 +184,48 @@ def main():
         return
 
     if not all_updates:
-        print(f"{BOLD}{GREEN}✨ Hệ thống của bạn đã được cập nhật hoàn toàn mới nhất! (0 updates){RESET}\n")
+        print(f"{GREEN}==> System is fully up to date (0 updates available).{RESET}")
         return
 
     ignored_pkgs = get_ignored_packages()
-
     aur_only = [u for u in all_updates if u.source == "AUR"]
     system_libs = [u for u in all_updates if not u.is_app and not u.is_kernel]
     kernels = [u for u in all_updates if u.is_kernel]
 
-    target_list = all_updates
-    if args.apps:
-        target_list = apps
-    elif args.aur:
-        target_list = aur_only
-
-    def print_section(title: str, icon: str, color: str, items: list[PkgUpdate]):
+    def print_section(title: str, color: str, items: list[PkgUpdate]):
         if not items:
             return
-        print(f"{BOLD}{color}{icon} {title} ({len(items)}){RESET}")
-        print(f"{DIM}{'─' * 70}{RESET}")
+        print(f"{BOLD}{color}:: {title} ({len(items)}){RESET}")
         max_name_len = max(len(u.name) for u in items)
         max_name_len = min(max(max_name_len + 2, 24), 36)
 
         for u in items:
-            tag = f"{MAGENTA}[AUR]{RESET}" if u.source == "AUR" else f"{BLUE}[Repo]{RESET}"
+            tag = f"{MAGENTA}aur{RESET}" if u.source == "AUR" else f"{BLUE}core{RESET}"
             is_held = u.name in ignored_pkgs or any(u.name.startswith(p.replace("*", "")) for p in ignored_pkgs)
-            held_tag = f" {ORANGE}[HELD/LOCKED]{RESET}" if is_held else ""
+            held_tag = f" {YELLOW}[held]{RESET}" if is_held else ""
 
-            name_fmt = f"{BOLD}{WHITE}{u.name:<{max_name_len}}{RESET}"
-            ver_fmt = f"{RED}{u.old_version}{RESET} {DIM}→{RESET} {GREEN}{u.new_version}{RESET}"
-            print(f"  {tag} {name_fmt} {ver_fmt}{held_tag}")
+            name_fmt = f"{BOLD}{u.name:<{max_name_len}}{RESET}"
+            ver_fmt = f"{RED}{u.old_version}{RESET} -> {GREEN}{u.new_version}{RESET}"
+            print(f"   [{tag}] {name_fmt} {ver_fmt}{held_tag}")
         print()
 
     if not args.apps and not args.aur:
-        print_section("Ứng dụng người dùng (User Applications)", "📦", CYAN, apps)
-        print_section("Gói nguồn cộng đồng (AUR Packages)", "⭐", MAGENTA, [u for u in aur_only if not u.is_app])
-        print_section("Thư viện & Tiện ích hệ thống (System & Libraries)", "⚙️", BLUE, system_libs)
+        print_section("User Applications", CYAN, apps)
+        print_section("AUR Packages", MAGENTA, [u for u in aur_only if not u.is_app])
+        print_section("System & Libraries", BLUE, system_libs)
         if kernels:
-            print_section("Nhân Linux / Kernel (Được bảo vệ)", "🛡️", ORANGE, kernels)
+            print_section("Protected Kernel Packages", YELLOW, kernels)
     elif args.apps:
-        print_section("Ứng dụng người dùng (User Applications)", "📦", CYAN, apps)
+        print_section("User Applications", CYAN, apps)
     elif args.aur:
-        print_section("Gói nguồn cộng đồng (AUR Packages)", "⭐", MAGENTA, aur_only)
+        print_section("AUR Packages", MAGENTA, aur_only)
 
-    print(f"{DIM}{'═' * 70}{RESET}")
+    print(f"{DIM}{'─' * 60}{RESET}")
     print(
-        f"{BOLD}📊 Tổng kết:{RESET} {BOLD}{GREEN}{len(all_updates)}{RESET} bản cập nhật "
-        f"({CYAN}{len(apps)}{RESET} ứng dụng, {MAGENTA}{len(aur_updates)}{RESET} AUR, {BLUE}{len(system_libs)}{RESET} thư viện hệ thống)."
+        f"{BOLD}Total:{RESET} {GREEN}{len(all_updates)}{RESET} updates "
+        f"({CYAN}{len(apps)}{RESET} apps, {MAGENTA}{len(aur_updates)}{RESET} AUR, {BLUE}{len(system_libs)}{RESET} system)."
     )
-    print(f"{BOLD}💡 Lệnh cập nhật nhanh:{RESET}")
-    print(f"  • Cập nhật tất cả ứng dụng:     {GREEN}arch-check -U{RESET}   (hoặc {GREEN}update-apps{RESET})")
-    print(f"  • Cập nhật 1 ứng dụng cụ thể:   {YELLOW}arch-check -u <tên_app>{RESET}\n")
+    print(f"{DIM}Run 'update-apps' (or 'arch-check -U') to update all applications.{RESET}\n")
 
 if __name__ == "__main__":
     main()
