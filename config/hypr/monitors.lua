@@ -3,7 +3,8 @@
 -- slow-training link cannot pin a low rate. Edits may be overwritten;
 -- re-run ryoku-monitor autoscale to regenerate.
 
-hl.monitor({ output = "DP-5", mode = "highrr", position = "0x0", scale = 1 })
+hl.monitor({ output = "eDP-1", mode = "highrr", position = "0x0", scale = 1.5 })
+hl.monitor({ output = "DP-5", mode = "highrr", position = "2048x0", scale = 1 })
 
 -- Keep GTK and XWayland apps crisp: the nearest whole scale when every
 -- monitor agrees, else 1 (Wayland scales native apps fractionally itself).
