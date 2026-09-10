@@ -359,6 +359,7 @@ cmd_autoscale() {
   gdk="$(sync_gdk_scale)"
   write_monitors_conf "$gdk"
   echo "ryoku-monitor: wrote $monitors_conf (GDK_SCALE=$gdk)"
+  refresh_shell
 }
 
 cmd_persist() {
@@ -368,6 +369,7 @@ cmd_persist() {
   gdk="$(sync_gdk_scale)"
   write_monitors_conf "$gdk"
   echo "ryoku-monitor: wrote $monitors_conf (GDK_SCALE=$gdk)"
+  refresh_shell
 }
 
 # re-assert each output's intended mode so a display that came up at a fallback
@@ -549,6 +551,11 @@ write_monitors_explicit() {
   } >"$monitors_conf"
 }
 
+refresh_shell() {
+  # Restart quickshell shell daemon to re-create bar and layers on new monitor geometries
+  pkill -f "qs -c shell" 2>/dev/null || true
+}
+
 # apply a layout live and remember it as the implicit applied layout, so the
 # choice (hand-set scale above all) survives a relogin: autoscale recalls it
 # for this display set instead of recomputing from DPI. JSON as $1 or on stdin.
@@ -563,6 +570,7 @@ cmd_apply() {
   mkdir -p "$(dirname "$applied_layout")"
   printf '%s' "$json" | jq '{monitors: .}' >"$applied_layout"
   echo "ryoku-monitor: applied layout -> $monitors_conf"
+  refresh_shell
 }
 
 # save the layout as a named, hardware-keyed profile and apply it now. JSON as
@@ -579,6 +587,7 @@ cmd_save() {
   printf '%s' "$json" | apply_specs
   printf '%s' "$json" | write_monitors_explicit
   echo "ryoku-monitor: saved profile $name"
+  refresh_shell
 }
 
 # hardware identities of the connected monitors, sorted + de-duped. the
@@ -617,6 +626,7 @@ load_layout_file() {
       | $m + { output: $out } ]' | sanitize_layout)"
   printf '%s' "$resolved" | apply_specs
   printf '%s' "$resolved" | write_monitors_explicit
+  refresh_shell
 }
 
 # load a saved profile by name.
