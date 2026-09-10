@@ -112,6 +112,8 @@ Item {
             attempt = 0
             reason = reason_
             console.warn("[BarWindowRecovery] window lost: " + reason)
+            if (recovery.targetWindow)
+                recovery.targetWindow.visible = false
             retryTimer.restart()
         }
 
@@ -124,7 +126,7 @@ Item {
 
         // Grows with each failed attempt and caps, so a window that needs a moment
         // comes straight back while one that cannot map costs almost nothing.
-        readonly property int retryDelay: Math.min(750 * Math.max(1, recovery.attempt), 15000)
+        readonly property int retryDelay: Math.min(200 * Math.max(1, recovery.attempt), 4000)
 
         Timer {
             id: retryTimer
@@ -143,17 +145,20 @@ Item {
                 recovery.attempt++
                 console.warn("[BarWindowRecovery] recreating bar window (attempt "
                              + recovery.attempt + ")")
-                recovery.targetWindow.visible = true
+                if (recovery.targetWindow) {
+                    recovery.targetWindow.visible = false
+                    recovery.targetWindow.visible = true
+                }
                 verifyTimer.restart()
             }
         }
 
         Timer {
             id: verifyTimer
-            interval: 1200
+            interval: 400
             repeat: false
             onTriggered: {
-                if (recovery.targetWindow.backingWindowVisible) {
+                if (recovery.targetWindow && recovery.targetWindow.backingWindowVisible) {
                     console.log("[BarWindowRecovery] bar window recovered after "
                                 + recovery.attempt + " attempt(s)")
                     recovery.pending = false
