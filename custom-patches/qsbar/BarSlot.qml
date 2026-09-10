@@ -12,11 +12,13 @@ import Quickshell.Io
 import "modules"
 import shell.services as Svc
 import Ryoku.PluginKit
+import Ryoku.Ui.Singletons
 
 PanelWindow {
     id: barSlot
     required property var root
     readonly property string screenName: barSlot.screen ? barSlot.screen.name : ""
+    readonly property real uiScale: Tokens.uiScaleFor(barSlot.screenName)
     // islands renders as separate per-region pills but uses the full-width
     // spread layout (rows anchored to the edges), so it is NOT a compact shell.
     readonly property bool islandsShell: barSlot.root.barShellStyle === "islands"
@@ -33,11 +35,11 @@ PanelWindow {
     // The Notch is a content-width lobe flowing directly out of the screen edge.
     // One continuous cubic per side creates the soft diagonal run-out without
     // a neck, step or frame around the rest of the output.
-    readonly property int notchFrameRadius: barSlot.root.v2NotchFrameRadius
+    readonly property int notchFrameRadius: Math.round(barSlot.root.v2NotchFrameRadius * barSlot.uiScale)
     readonly property int notchShoulderWidth: notchFrameRadius
-    readonly property int notchBodyRadius: 9
+    readonly property int notchBodyRadius: Math.round(9 * barSlot.uiScale)
     readonly property real notchCurveKappa: 0.55228475
-    readonly property int shellVisibleHeight: barSlot.root.v2BarHeight
+    readonly property int shellVisibleHeight: Math.round(barSlot.root.v2BarHeight * barSlot.uiScale)
     // Side gaps shrink the span before the shell is sized, so a fitted form
     // never reaches into the reserved edge strips.
     readonly property int gapLeft: barSlot.root.barGapLeft
@@ -47,7 +49,7 @@ PanelWindow {
     readonly property real shellTargetWidth: compactShell
         ? Math.max(80,
             Math.min(shellSpan - 2 * shellOuterMargin,
-                island.fitNaturalWidth))
+                Math.round(island.fitNaturalWidth * barSlot.uiScale)))
         : shellSpan
 
     color: "transparent"
@@ -66,7 +68,7 @@ PanelWindow {
     // Same reservation for every shell style, widened by the gaps so a client
     // never slides behind the bar.
     exclusiveZone: barSlot.root.barAutoHide ? 0
-        : (barSlot.gapLead + barSlot.root.v2BarHeight
+        : (barSlot.gapLead + barSlot.shellVisibleHeight
            + barSlot.root.barGapTrail + 3)
     // The input region is the bar strip. Auto-hide widens it to the full edge
     // (so a hover anywhere reveals, including the gaps between islands) and
@@ -146,7 +148,7 @@ PanelWindow {
             : barSlot.gapLead
         width: barSlot.shellTargetWidth
         height: barSlot.shellVisibleHeight
-        radius: barSlot.shellRadius
+        radius: Math.round(barSlot.shellRadius * barSlot.uiScale)
         color: "transparent"
         z: 0
 
@@ -320,7 +322,7 @@ PanelWindow {
             x: -continuousBarSurface.x
             y: 0
             width: barSlot.width
-            height: barSlot.root.v2BarHeight
+            height: barSlot.shellVisibleHeight
             antialiasing: true
             preferredRendererType: Shape.CurveRenderer
 
@@ -402,7 +404,7 @@ PanelWindow {
             x: -continuousBarSurface.x
             y: 0
             width: barSlot.width
-            height: barSlot.root.v2BarHeight
+            height: barSlot.shellVisibleHeight
             antialiasing: true
             preferredRendererType: Shape.CurveRenderer
 
@@ -681,7 +683,7 @@ PanelWindow {
             x: 0
             y: 0
             width: parent.width
-            height: barSlot.root.v2BarHeight
+            height: barSlot.shellVisibleHeight
 
             // Geometry/state owner only. The visible border and connected inset
             // are rendered after the widget island so fills can never cover them.
@@ -1417,16 +1419,16 @@ PanelWindow {
                         void(edgeBorder.curvedInsetReveal)
                         var edgeY = barSlot.root.barPosition === "bottom"
                             ? 0.5
-                            : barSlot.root.v2BarHeight - 0.5
+                            : edgeBorder.height - 0.5
                         return mapFromItem(edgeBorder,
                             edgeBorder.curvedInsetPixel, edgeY).y
                     }
                     readonly property real edgeTipLocalY: {
                         void(edgeBorder.curvedInsetReveal)
                         var edgeY = barSlot.root.barPosition === "bottom"
-                            ? 0.5 + 5 * edgeBorder.curvedInsetReveal
-                            : barSlot.root.v2BarHeight - 0.5
-                                - 5 * edgeBorder.curvedInsetReveal
+                            ? 0.5 + 5 * barSlot.uiScale * edgeBorder.curvedInsetReveal
+                            : edgeBorder.height - 0.5
+                                - 5 * barSlot.uiScale * edgeBorder.curvedInsetReveal
                         return mapFromItem(edgeBorder,
                             edgeBorder.curvedInsetPixel, edgeY).y
                     }
@@ -1869,15 +1871,23 @@ PanelWindow {
 
     Item {
         id: island
-        transform: Translate { y: barSlot.hideShift }
+        transform: [
+            Translate { y: barSlot.hideShift },
+            Scale {
+                origin.x: 0
+                origin.y: 0
+                xScale: barSlot.uiScale
+                yScale: barSlot.uiScale
+            }
+        ]
         // The backing layer-window remains full-screen, but the visible/content
         // island follows the selected shell surface. This preserves stable
         // layer-shell resources while Fit/Notch resize with their visible rows.
         x: continuousBarSurface.x
-        width: continuousBarSurface.width
+        width: Math.round(continuousBarSurface.width / barSlot.uiScale)
         height: barSlot.root.v2BarHeight
         y: barSlot.root.barPosition === "bottom"
-            ? parent.height - height - barSlot.gapLead
+            ? parent.height - barSlot.shellVisibleHeight - barSlot.gapLead
             : barSlot.gapLead
         z: 2                                  // above the dim backdrop
         focus: barSlot.root.barUnlocked       // receive keys while unlocked
@@ -2254,7 +2264,7 @@ PanelWindow {
                 for (var k = 0; k < rep.count; k++) {
                     var it = rep.itemAt(k)
                     if (it && it.gid === gid) {
-                        return island.x + row.x + it.x + it.width * frac
+                        return island.x + (row.x + it.x + it.width * frac) * barSlot.uiScale
                     }
                 }
             }
@@ -2274,8 +2284,8 @@ PanelWindow {
                     var it = rep.itemAt(k)
                     if (it && it.gid === gid && it.contentItem
                             && it.contentItem[propertyName] !== undefined) {
-                        return island.x + row.x + it.x + it.pad
-                            + Number(it.contentItem[propertyName])
+                        return island.x + (row.x + it.x + it.pad
+                            + Number(it.contentItem[propertyName])) * barSlot.uiScale
                     }
                 }
             }
@@ -2346,7 +2356,7 @@ PanelWindow {
         x: continuousBarSurface.x
         y: continuousBarSurface.y
         width: continuousBarSurface.width
-        height: barSlot.root.v2BarHeight
+        height: barSlot.shellVisibleHeight
         visible: barSlot.root.barBorderEnabled && !barSlot.islandsShell
         z: 3
 

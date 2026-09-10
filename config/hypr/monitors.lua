@@ -1,8 +1,8 @@
 -- Managed by ryoku-monitor (Ryoku Settings layout). The per-output modes are
 -- the ones chosen in the Displays section; edits here may be overwritten.
 
-hl.monitor({ output = "eDP-1", mode = "3072x1920@60.00", position = "0x0", scale = 1.5, cm = "srgb", bitdepth = 8, sdrbrightness = 1 })
-hl.monitor({ output = "DP-5", mode = "1920x1200@60.00", position = "2048x0", scale = 1, cm = "srgb", bitdepth = 8, sdrbrightness = 1 })
+hl.monitor({ output = "eDP-1", mode = "3072x1920@60.00", position = "0x0", scale = 2, cm = "srgb", bitdepth = 8, sdrbrightness = 1 })
+hl.monitor({ output = "DP-5", mode = "1920x1200@60.00", position = "1536x0", scale = 1, cm = "srgb", bitdepth = 8, sdrbrightness = 1 })
 
 -- Keep GTK and XWayland apps crisp (nearest whole scale when every monitor
 -- agrees, else 1).

@@ -9,10 +9,10 @@ hl.config({
   cursor = { hide_on_key_press = true },
 })
 
-hl.env("XCURSOR_THEME", "phinger-cursors-light")
-hl.env("XCURSOR_SIZE", "25")
-hl.env("HYPRCURSOR_THEME", "phinger-cursors-light")
-hl.env("HYPRCURSOR_SIZE", "25")
+hl.env("XCURSOR_THEME", "phinger-cursors-dark")
+hl.env("XCURSOR_SIZE", "30")
+hl.env("HYPRCURSOR_THEME", "phinger-cursors-dark")
+hl.env("HYPRCURSOR_SIZE", "30")
 
 hl.env("BROWSER", "zen-browser")
 hl.env("TERMINAL", "kitty")
@@ -21,5 +21,5 @@ hl.config({ scrolling = { follow_focus = false } })
 
 
 hl.on("hyprland.start", function()
-  hl.exec_cmd("hyprctl setcursor phinger-cursors-light 25")
+  hl.exec_cmd("hyprctl setcursor phinger-cursors-dark 30")
 end)
