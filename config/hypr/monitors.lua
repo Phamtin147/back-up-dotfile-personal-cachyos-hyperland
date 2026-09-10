@@ -3,10 +3,11 @@
 -- slow-training link cannot pin a low rate. Edits may be overwritten;
 -- re-run ryoku-monitor autoscale to regenerate.
 
+hl.monitor({ output = "DP-5", mode = "highrr", position = "0x0", scale = 1 })
 
 -- Keep GTK and XWayland apps crisp: the nearest whole scale when every
 -- monitor agrees, else 1 (Wayland scales native apps fractionally itself).
-hl.env("GDK_SCALE", "2")
+hl.env("GDK_SCALE", "1")
 
 -- Catch-all for monitors not listed above. A hotplugged display comes up at
 -- its preferred mode (always valid on an untrained link, unlike highrr, which
