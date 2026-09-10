@@ -769,10 +769,10 @@ PanelWindow {
     readonly property string orderCachePath: Quickshell.env("HOME") + "/.cache/quickshell_barorder_v2"
     readonly property int leftBaseSlotCount: 10
     readonly property int centerBaseSlotCount: 1
-    readonly property int rightBaseSlotCount: 7
+    readonly property int rightBaseSlotCount: 8
     // Both side regions can reach the same total capacity. The right side has
     // fewer built-in groups, so it receives three more optional slots.
-    readonly property int sideSlotCapacity: 13
+    readonly property int sideSlotCapacity: 14
     readonly property int leftExtraSlotLimit: sideSlotCapacity - leftBaseSlotCount
     readonly property int rightExtraSlotLimit: sideSlotCapacity - rightBaseSlotCount
     readonly property int centerExtraSlotLimit: 3
@@ -851,8 +851,27 @@ PanelWindow {
             c = previousCenter
             r = previousRight
         }
+        
+        // If G19 is not in the loaded cache yet, insert it next to G11 (Wi-Fi)
+        if (l && c && r) {
+            var hasG19 = false
+            for (var k = 0; k < l.length; k++) if (l[k].gid === "G19") { hasG19 = true; break }
+            if (!hasG19) for (var k = 0; k < c.length; k++) if (c[k].gid === "G19") { hasG19 = true; break }
+            if (!hasG19) for (var k = 0; k < r.length; k++) if (r[k].gid === "G19") { hasG19 = true; break }
+            if (!hasG19) {
+                var inserted = false
+                for (var k = 0; k < r.length; k++) {
+                    if (r[k].gid === "G11") {
+                        r.splice(k, 0, { gid: "G19", extra: r[k].extra })
+                        inserted = true
+                        break
+                    }
+                }
+                if (!inserted) r.push({ gid: "G19", extra: true })
+            }
+        }
 
-        // Only accept a complete permutation of G1..G18. Empty slots are legal,
+        // Only accept a complete permutation of G1..G19. Empty slots are legal,
         // but each registered widget must still occur exactly once.
         var all = l.concat(c, r), seen = {}
         for (var i = 0; i < all.length; i++) {
@@ -909,7 +928,7 @@ PanelWindow {
     // empty base cells and the six optional cells on the right.
     function resetOrder() {
         var dL = ["G1","G2","G3","","G5","G6","G4","G7","",""]
-        var dR = ["G9","G10","G11","G14","G12","G13","G16",
+        var dR = ["G9","G10","G19","G11","G14","G12","G13","G16",
                   "G18","G17","G15","","",""]
         resetModel(leftModel, dL, leftBaseSlotCount)
         resetModel(centerModel, ["G8"], centerBaseSlotCount)
@@ -1284,6 +1303,14 @@ PanelWindow {
             readonly property real barContentRightInset: 9
         }
     }
+    Component {
+        id: compDocker
+        DockerWidget {
+            root: barSlot.root
+            readonly property real barContentLeftInset: 9
+            readonly property real barContentRightInset: 9
+        }
+    }
 
     readonly property var registry: ({
         "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
@@ -1291,12 +1318,14 @@ PanelWindow {
         "G8": compCenter,
         "G9": compMpris, "G10": compQuick, "G11": compNetwork,
         "G12": compBattery, "G13": compBrightness, "G14": compPower, "G15": compBluetooth,
-        "G16": compCpuTemperature, "G17": compGpu, "G18": compStorage
+        "G16": compCpuTemperature, "G17": compGpu, "G18": compStorage,
+        "G19": compDocker
     })
 
     // ───────────────────── reusable region row of slots ─────────────────────
     component SlotRow: Row {
         id: slotRow
+        width: implicitWidth
         property var rmodel
         property int baseCount
         property int maxExtraCount: 3
@@ -2098,10 +2127,10 @@ PanelWindow {
         ListModel { id: centerModel; ListElement { gid: "G8"; extra: false } }
         ListModel {
             id: rightModel
-            ListElement { gid: "G9"; extra: false }  ListElement { gid: "G10"; extra: false } ListElement { gid: "G11"; extra: false }
-            ListElement { gid: "G14"; extra: false } ListElement { gid: "G12"; extra: false } ListElement { gid: "G13"; extra: false }
-            ListElement { gid: "G16"; extra: false } ListElement { gid: "G18"; extra: true }  ListElement { gid: "G17"; extra: true }
-            ListElement { gid: "G15"; extra: true }  ListElement { gid: ""; extra: true }     ListElement { gid: ""; extra: true }
+            ListElement { gid: "G9"; extra: false }  ListElement { gid: "G10"; extra: false } ListElement { gid: "G19"; extra: false }
+            ListElement { gid: "G11"; extra: false } ListElement { gid: "G14"; extra: false } ListElement { gid: "G12"; extra: false }
+            ListElement { gid: "G13"; extra: false } ListElement { gid: "G16"; extra: false } ListElement { gid: "G18"; extra: true }
+            ListElement { gid: "G17"; extra: true }  ListElement { gid: "G15"; extra: true }  ListElement { gid: ""; extra: true }
             ListElement { gid: ""; extra: true }
         }
 
@@ -2267,6 +2296,7 @@ PanelWindow {
                 quickActions: island.groupX("G10", 0.5),
                 volume:       island.groupX("G6",  0.5),
                 network:      island.groupX("G11", 0.5),
+                docker:       island.groupX("G19", 0.5),
                 battery:      island.groupX("G12", 0.5),
                 memory:       island.groupX("G4",  0.5),
                 cpu:          island.groupX("G5",  0.5),
@@ -2297,6 +2327,7 @@ PanelWindow {
             theme: barSlot.root
             leftRow: leftRowItem
             centerRow: centerRowItem
+            pluginRow: pluginRow
             rightRow: rightRowItem
             monitor: barSlot.screenName
             shellVisible: barSlot.visible

@@ -5,7 +5,7 @@
 hl.config({
   general = { gaps_in = 4, gaps_out = 4, border_size = 1, layout = "scrolling", extend_border_grab_area = 5 },
   decoration = { inactive_opacity = 1.0, dim_strength = 0.07, border_part_of_window = false, blur = { size = 6, passes = 2, xray = true }, shadow = { enabled = false, range = 8, render_power = 2 }, glow = { range = 4 } },
-  input = { kb_layout = "mac_us_jis", kb_variant = "", kb_model = "applealu_jis", kb_options = "" },
+  input = { kb_layout = "us", kb_variant = "", kb_options = "" },
   cursor = { hide_on_key_press = true },
 })
 

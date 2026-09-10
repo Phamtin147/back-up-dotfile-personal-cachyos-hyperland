@@ -29,10 +29,11 @@ Item {
     // sibling task, so every read of it is guarded against a transient absence.
     required property var theme
 
-    // The three physical widget clusters (island-local x / width). ReactorLayer
+    // The physical widget clusters (island-local x / width). ReactorLayer
     // fills the island, so a row's x is already in our own coordinate space.
     property var leftRow: null
     property var centerRow: null
+    property var pluginRow: null
     property var rightRow: null
 
     property string monitor: ""
@@ -56,24 +57,43 @@ Item {
 
     // ── run rectangles (local coords): one per visible cluster, physical L→R ──
     function clusterRun(row) {
-        if (!row || row.width < 1)
+        if (!row)
             return null
-        return { x: row.x, w: row.width }
+        var w = Math.max(row.width || 0, row.implicitWidth || 0)
+        if (w < 1)
+            return null
+        return { x: row.x, w: w }
     }
     function computeRuns() {
         var out = []
-        var groups = [clusterRun(leftRow), clusterRun(centerRow), clusterRun(rightRow)]
+        var groups = [clusterRun(leftRow), clusterRun(centerRow), clusterRun(pluginRow), clusterRun(rightRow)]
         for (var i = 0; i < groups.length; i++)
             if (groups[i])
                 out.push(groups[i])
-        return out
+        out.sort(function(a, b) { return a.x - b.x })
+
+        if (out.length <= 1) return out
+        var merged = [out[0]]
+        for (var j = 1; j < out.length; j++) {
+            var prev = merged[merged.length - 1]
+            var curr = out[j]
+            // Merge clusters that touch or overlap (e.g. pluginRow adjacent to rightRow)
+            if (curr.x <= prev.x + prev.w + 10) {
+                var newEnd = Math.max(prev.x + prev.w, curr.x + curr.w)
+                prev.w = newEnd - prev.x
+            } else {
+                merged.push(curr)
+            }
+        }
+        return merged
     }
     readonly property var runs: {
         if (reactor.usePills)
             return reactor.pillRects
-        void (leftRow ? leftRow.x : 0);     void (leftRow ? leftRow.width : 0)
-        void (centerRow ? centerRow.x : 0); void (centerRow ? centerRow.width : 0)
-        void (rightRow ? rightRow.x : 0);   void (rightRow ? rightRow.width : 0)
+        void (leftRow ? leftRow.x : 0);             void (leftRow ? leftRow.width : 0);             void (leftRow ? leftRow.implicitWidth : 0)
+        void (centerRow ? centerRow.x : 0);         void (centerRow ? centerRow.width : 0);         void (centerRow ? centerRow.implicitWidth : 0)
+        void (pluginRow ? pluginRow.x : 0);         void (pluginRow ? pluginRow.width : 0);         void (pluginRow ? pluginRow.implicitWidth : 0)
+        void (rightRow ? rightRow.x : 0);           void (rightRow ? rightRow.width : 0);           void (rightRow ? rightRow.implicitWidth : 0)
         return computeRuns()
     }
 

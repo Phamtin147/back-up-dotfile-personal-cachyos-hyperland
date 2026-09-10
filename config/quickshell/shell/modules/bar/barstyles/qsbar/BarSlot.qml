@@ -1325,6 +1325,7 @@ PanelWindow {
     // ───────────────────── reusable region row of slots ─────────────────────
     component SlotRow: Row {
         id: slotRow
+        width: implicitWidth
         property var rmodel
         property int baseCount
         property int maxExtraCount: 3
@@ -2326,6 +2327,7 @@ PanelWindow {
             theme: barSlot.root
             leftRow: leftRowItem
             centerRow: centerRowItem
+            pluginRow: pluginRow
             rightRow: rightRowItem
             monitor: barSlot.screenName
             shellVisible: barSlot.visible
