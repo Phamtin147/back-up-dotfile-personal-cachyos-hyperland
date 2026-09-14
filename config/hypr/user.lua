@@ -10,6 +10,10 @@ hl.config({
         no_focus_fallback = false,
     },
     input = {
+        kb_layout = "mac_us_jis",
+        kb_model = "applealu_jis",
+        kb_variant = "",
+        kb_options = "",
         follow_mouse = 0,
         mouse_refocus = false,
         touchpad = {
