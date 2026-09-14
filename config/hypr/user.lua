@@ -43,6 +43,8 @@ hl.animation({ leaf = "workspaces", enabled = true, speed = 4.0, bezier = "smoot
 -- 3. Smooth Rendering & Optimized Blur (Ultra silky 60fps)
 hl.config({
     decoration = {
+        rounding = 16,
+        rounding_power = 2,
         blur = {
             enabled = true,
             size = 6,
