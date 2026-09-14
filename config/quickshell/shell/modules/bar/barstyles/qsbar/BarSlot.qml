@@ -2078,13 +2078,13 @@ PanelWindow {
         // sorted L->R. The reactor consumes these so its gap channels are the real
         // gaps between the real islands and its stream attaches to every pill edge.
         readonly property var pillRects: {
-            if (!barSlot.islandsShell) return []
             var rs = island.islandRuns
+            var pad = barSlot.islandsShell ? barSlot.islandsPad : 8
             var out = []
             for (var i = 0; i < rs.length; i++) {
                 if (!(rs[i].b - rs[i].a > 0.5)) continue
-                var xL = Math.max(barSlot.shellOuterMargin, rs[i].a - barSlot.islandsPad)
-                var xR = Math.min(island.width - barSlot.shellOuterMargin, rs[i].b + barSlot.islandsPad)
+                var xL = Math.max(barSlot.shellOuterMargin, rs[i].a - pad)
+                var xR = Math.min(island.width - barSlot.shellOuterMargin, rs[i].b + pad)
                 if (xR - xL > 0.5) out.push({ x: xL, w: xR - xL })
             }
             out.sort(function(p, q) { return p.x - q.x })
@@ -2144,6 +2144,7 @@ PanelWindow {
 
         SlotRow {
             id: leftRowItem
+            z: 2
             anchors.verticalCenter: parent.verticalCenter
             x: barSlot.compactShell ? island.fitPadding : island.rowInset
             rmodel: leftModel
@@ -2152,6 +2153,7 @@ PanelWindow {
         }
         SlotRow {
             id: centerRowItem
+            z: 2
             // no centerIn: x is clamped between the side rows on narrow monitors
             anchors.verticalCenter: parent.verticalCenter
             x: barSlot.compactShell
@@ -2168,6 +2170,7 @@ PanelWindow {
         }
         SlotRow {
             id: rightRowItem
+            z: 2
             anchors.verticalCenter: parent.verticalCenter
             x: barSlot.compactShell
                 ? island.fitPadding
@@ -2188,6 +2191,7 @@ PanelWindow {
         // sets change at install time, so they are not persisted layout slots.
         Row {
             id: pluginRow
+            z: 2
             anchors.verticalCenter: parent.verticalCenter
             spacing: barSlot.root.v2WidgetSpacing
             height: 32
