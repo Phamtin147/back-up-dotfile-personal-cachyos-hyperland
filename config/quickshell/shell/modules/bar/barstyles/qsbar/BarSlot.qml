@@ -164,7 +164,7 @@ PanelWindow {
         readonly property real anchoredCornerRadius:
             !shellFloats ? 0
             : barSlot.root.barShellStyle === "fit" || barSlot.gapLead > 0 ? radius : 0
-        readonly property real desktopCornerRadius: shellFloats ? radius : 0
+        readonly property real desktopCornerRadius: radius
         readonly property real topCornerRadius: barSlot.root.barPosition === "bottom"
             ? desktopCornerRadius : anchoredCornerRadius
         readonly property real bottomCornerRadius: barSlot.root.barPosition === "top"
@@ -1964,8 +1964,9 @@ PanelWindow {
         // ONLY left/right geometry (never the center row), so stage changes that
         // resize G8 cannot feed back into this value (no binding loop).
         readonly property int centerGap: 12
-        // Pull the first and last groups 2px closer to the physical screen edge.
-        readonly property int rowMargin: 5
+        // Pull the first and last groups closer to screen edge, keeping room for bottom corner radius.
+        readonly property int rowMargin: continuousBarSurface.bottomCornerRadius > 0
+            ? Math.max(12, Math.round(continuousBarSurface.bottomCornerRadius * 0.75)) : 5
         // Islands clamp their pill to shellOuterMargin, so the row must start a
         // full pad inside it or the pill collapses onto its own content.
         readonly property int rowInset: barSlot.islandsShell

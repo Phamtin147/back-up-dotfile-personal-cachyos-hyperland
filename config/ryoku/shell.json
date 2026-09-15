@@ -333,7 +333,7 @@
     "barAutoHide": false,
     "barBorderEnabled": false,
     "barColor": "color01",
-    "barCornerRadius": 0,
+    "barCornerRadius": 16,
     "barFrostEnabled": false,
     "barGapBottom": 0,
     "barGapLeft": 0,
@@ -342,6 +342,7 @@
     "barPosition": "top",
     "barSeps": [
       "G2",
+      "G1",
       "G8"
     ],
     "barShadowEnabled": false,

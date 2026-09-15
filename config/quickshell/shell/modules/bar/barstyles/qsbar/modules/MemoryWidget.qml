@@ -52,12 +52,12 @@ Item {
                     var start = -Math.PI / 2
                     var end = start + Math.PI * 2 * ratio
 
-                    ctx.lineWidth = 1.7
+                    ctx.lineWidth = 2.0
                     ctx.lineCap = "round"
 
                     ctx.beginPath()
                     ctx.arc(cx, cy, r, 0, Math.PI * 2)
-                    ctx.strokeStyle = Qt.rgba(base.r, base.g, base.b, 0.18)
+                    ctx.strokeStyle = Qt.rgba(base.r, base.g, base.b, 0.35)
                     ctx.stroke()
 
                     if (ratio > 0) {

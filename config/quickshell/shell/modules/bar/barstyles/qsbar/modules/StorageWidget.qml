@@ -3,7 +3,10 @@ import QtQuick
 Item {
     id: rootMod
     required property var root
-    readonly property color contentColor: root.widgetContentColor("G18", root.widgetIconColor)
+    readonly property color dynamicColor: rootMod.percent >= 90 ? "#ef4444"
+        : rootMod.percent >= 80 ? "#eab308"
+        : root.widgetIconColor
+    readonly property color contentColor: root.widgetContentColor("G18", dynamicColor)
 
     readonly property int percent: root.storagePercent
     readonly property string tooltipText: "Root filesystem · " + percent + "% · "
@@ -21,7 +24,7 @@ Item {
         spacing: 4
 
         UiText {
-            visible: false
+            visible: true
             width: 15
             text: "󰋊"
             color: rootMod.contentColor
@@ -31,7 +34,7 @@ Item {
         }
 
         UiText {
-            visible: false
+            visible: !root.iconOnly("G18")
             anchors.verticalCenter: parent.verticalCenter
             text: String(Math.min(100, rootMod.percent)).padStart(2, "0") + "%"
             color: rootMod.contentColor
