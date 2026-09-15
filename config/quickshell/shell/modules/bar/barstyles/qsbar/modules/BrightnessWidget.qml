@@ -6,7 +6,7 @@ import "../RyokuPower.js" as RyokuPower
 Item {
     id: rootMod
     required property var root
-    readonly property color contentColor: root.widgetContentColor("G13", root.ink)
+    readonly property color contentColor: root.widgetContentColor("G13", root.widgetIconColor)
 
     property bool   hasBacklight: false
     property int    percent:      0
@@ -56,10 +56,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
 
             readonly property real ratio: Math.max(0, Math.min(1, rootMod.percent / 100))
-            // turns theme-red at full brightness, like the battery's full state
-            readonly property color sunColor: rootMod.percent >= 100
-                ? (root.widgetHasFill("G13") ? rootMod.contentColor : root.seal)
-                : rootMod.contentColor
+            readonly property color sunColor: rootMod.contentColor
 
             Rectangle {
                 anchors.centerIn: parent
@@ -97,9 +94,7 @@ Item {
             visible: false
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.percent + "%"
-            color: rootMod.percent >= 100
-                ? (root.widgetHasFill("G13") ? rootMod.contentColor : root.seal)
-                : rootMod.contentColor
+            color: rootMod.contentColor
             font.family: root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 200 } }
