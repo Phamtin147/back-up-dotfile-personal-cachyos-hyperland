@@ -1333,6 +1333,36 @@ PanelWindow {
         readonly property int extraCount: rmodel ? barSlot.extraSlotCount(rmodel, baseCount) : 0
         spacing: barSlot.root.v2WidgetSpacing
         height: 32
+        readonly property bool clusterHasVisibleContent: {
+            void(width)
+            for (var k = 0; k < repeater.count; k++) {
+                var it = repeater.itemAt(k)
+                if (it && it.hasContent && it.autoShown) return true
+            }
+            return false
+        }
+        readonly property real clusterVisualLeft: {
+            void(x)
+            void(width)
+            for (var k = 0; k < repeater.count; k++) {
+                var it = repeater.itemAt(k)
+                if (it && it.hasContent && it.autoShown) {
+                    return x + it.x + it.visualLeftEdge
+                }
+            }
+            return x
+        }
+        readonly property real clusterVisualRight: {
+            void(x)
+            void(width)
+            for (var k = repeater.count - 1; k >= 0; k--) {
+                var it = repeater.itemAt(k)
+                if (it && it.hasContent && it.autoShown) {
+                    return x + it.x + it.visualRightEdge
+                }
+            }
+            return x + width
+        }
         // index of the LAST currently shown slot (skips disabled and auto-hidden
         // narrow-stage widgets) - a separator only makes sense BEFORE this gap.
         readonly property int lastVisibleIndex: {
@@ -2078,8 +2108,9 @@ PanelWindow {
         // sorted L->R. The reactor consumes these so its gap channels are the real
         // gaps between the real islands and its stream attaches to every pill edge.
         readonly property var pillRects: {
+            if (!barSlot.islandsShell) return []
             var rs = island.islandRuns
-            var pad = barSlot.islandsShell ? barSlot.islandsPad : 8
+            var pad = barSlot.islandsPad
             var out = []
             for (var i = 0; i < rs.length; i++) {
                 if (!(rs[i].b - rs[i].a > 0.5)) continue
