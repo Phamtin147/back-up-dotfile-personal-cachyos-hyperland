@@ -160,11 +160,13 @@ PanelWindow {
         readonly property bool shellFloats: barSlot.compactShell
             || barSlot.gapLead > 0
             || (barSlot.gapLeft > 0 && barSlot.gapRight > 0)
+        readonly property bool outerCorners: !shellFloats && radius > 0 && barSlot.root.barShellStyle === "full"
+        readonly property real outerCornerRadius: outerCorners ? radius : 0
         // the edge the bar is anchored to; rounds only once lifted off it.
         readonly property real anchoredCornerRadius:
             !shellFloats ? 0
             : barSlot.root.barShellStyle === "fit" || barSlot.gapLead > 0 ? radius : 0
-        readonly property real desktopCornerRadius: radius
+        readonly property real desktopCornerRadius: outerCorners ? 0 : (shellFloats ? radius : 0)
         readonly property real topCornerRadius: barSlot.root.barPosition === "bottom"
             ? desktopCornerRadius : anchoredCornerRadius
         readonly property real bottomCornerRadius: barSlot.root.barPosition === "top"
@@ -676,9 +678,11 @@ PanelWindow {
             // It draws on the desktop-facing edge, so it answers that edge's radius.
             readonly property int endInset: barSlot.root.barShellStyle === "notch"
                 ? barSlot.notchBodyRadius
-                : Math.round(barSlot.root.barPosition === "bottom"
-                    ? continuousBarSurface.topCornerRadius
-                    : continuousBarSurface.bottomCornerRadius)
+                : Math.round(continuousBarSurface.outerCorners
+                    ? continuousBarSurface.outerCornerRadius
+                    : (barSlot.root.barPosition === "bottom"
+                        ? continuousBarSurface.topCornerRadius
+                        : continuousBarSurface.bottomCornerRadius))
 
             x: 0
             y: 0
@@ -2422,6 +2426,127 @@ PanelWindow {
             y: barSlot.root.barPosition === "bottom"
                 ? 0
                 : foregroundEdgeBorder.height - height
+        }
+    }
+
+    // ── Outer Corners (Noctalia-style concave curved corners sloping onto screen borders) ──
+    Canvas {
+        id: outerCornerLeft
+        visible: continuousBarSurface.outerCorners && barSlot.barShown
+        transform: Translate { y: barSlot.hideShift }
+        width: Math.round(barSlot.root.barCornerRadius * barSlot.uiScale)
+        height: width
+        x: 0
+        y: barSlot.root.barPosition === "bottom"
+            ? barSlot.height - barSlot.shellVisibleHeight - height - barSlot.gapLead
+            : barSlot.shellVisibleHeight + barSlot.gapLead
+        z: 3
+        renderTarget: Canvas.FramebufferObject
+
+        readonly property color bgColor: barSlot.root.barBg
+        readonly property color borderColor: barSlot.root.v2BarBorder
+        readonly property bool borderEnabled: barSlot.root.barBorderEnabled
+        readonly property bool isTop: barSlot.root.barPosition === "top"
+
+        onPaint: {
+            const ctx = getContext("2d");
+            ctx.reset();
+            const r = width;
+
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            if (isTop) {
+                ctx.moveTo(0, r);
+                ctx.arcTo(0, 0, r, 0, r);
+                ctx.lineTo(0, 0);
+            } else {
+                ctx.moveTo(0, 0);
+                ctx.arcTo(0, r, r, r, r);
+                ctx.lineTo(0, r);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            if (borderEnabled) {
+                ctx.strokeStyle = borderColor;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                if (isTop) {
+                    ctx.moveTo(0.5, r);
+                    ctx.arcTo(0.5, 0.5, r, 0.5, r);
+                } else {
+                    ctx.moveTo(0.5, 0);
+                    ctx.arcTo(0.5, r - 0.5, r, r - 0.5, r);
+                }
+                ctx.stroke();
+            }
+        }
+
+        Connections {
+            target: barSlot.root
+            function onBarBgChanged() { outerCornerLeft.requestPaint(); }
+            function onBarCornerRadiusChanged() { outerCornerLeft.requestPaint(); }
+            function onBarBorderEnabledChanged() { outerCornerLeft.requestPaint(); }
+        }
+    }
+
+    Canvas {
+        id: outerCornerRight
+        visible: continuousBarSurface.outerCorners && barSlot.barShown
+        transform: Translate { y: barSlot.hideShift }
+        width: Math.round(barSlot.root.barCornerRadius * barSlot.uiScale)
+        height: width
+        x: barSlot.width - width
+        y: barSlot.root.barPosition === "bottom"
+            ? barSlot.height - barSlot.shellVisibleHeight - height - barSlot.gapLead
+            : barSlot.shellVisibleHeight + barSlot.gapLead
+        z: 3
+        renderTarget: Canvas.FramebufferObject
+
+        readonly property color bgColor: barSlot.root.barBg
+        readonly property color borderColor: barSlot.root.v2BarBorder
+        readonly property bool borderEnabled: barSlot.root.barBorderEnabled
+        readonly property bool isTop: barSlot.root.barPosition === "top"
+
+        onPaint: {
+            const ctx = getContext("2d");
+            ctx.reset();
+            const r = width;
+
+            ctx.fillStyle = bgColor;
+            ctx.beginPath();
+            if (isTop) {
+                ctx.moveTo(r, r);
+                ctx.arcTo(r, 0, 0, 0, r);
+                ctx.lineTo(r, 0);
+            } else {
+                ctx.moveTo(r, 0);
+                ctx.arcTo(r, r, 0, r, r);
+                ctx.lineTo(r, r);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            if (borderEnabled) {
+                ctx.strokeStyle = borderColor;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                if (isTop) {
+                    ctx.moveTo(r - 0.5, r);
+                    ctx.arcTo(r - 0.5, 0.5, 0, 0.5, r);
+                } else {
+                    ctx.moveTo(r - 0.5, 0);
+                    ctx.arcTo(r - 0.5, r - 0.5, 0, r - 0.5, r);
+                }
+                ctx.stroke();
+            }
+        }
+
+        Connections {
+            target: barSlot.root
+            function onBarBgChanged() { outerCornerRight.requestPaint(); }
+            function onBarCornerRadiusChanged() { outerCornerRight.requestPaint(); }
+            function onBarBorderEnabledChanged() { outerCornerRight.requestPaint(); }
         }
     }
 }
