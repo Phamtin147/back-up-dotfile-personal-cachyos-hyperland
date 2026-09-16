@@ -19,7 +19,6 @@ marker_selected = { fg = "{{colors.tertiary.default.hex}}", bg = "{{colors.terti
 # Tab
 tab_active = { bg = "{{colors.primary.default.hex}}", fg = "{{colors.on_primary.default.hex}}" }
 tab_inactive = { bg = "{{colors.surface_container.default.hex}}", fg = "{{colors.on_surface_variant.default.hex}}" }
-tab_width = 1
 
 # Count
 count_copied = { fg = "{{colors.on_primary.default.hex}}", bg = "{{colors.primary.default.hex}}" }
