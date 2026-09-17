@@ -21,6 +21,7 @@ hl.config({
             tap_to_click = true,
             drag_lock = true,
             disable_while_typing = false,
+            drag_3fg = 1,
         },
     },
     gestures = {
