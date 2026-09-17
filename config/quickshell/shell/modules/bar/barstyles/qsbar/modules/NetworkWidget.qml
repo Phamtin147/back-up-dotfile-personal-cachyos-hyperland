@@ -61,6 +61,9 @@ Item {
         prevRx = rx; prevTx = tx; prevMs = now
     }
 
+    readonly property color rxColor: (root.theme && root.theme.color02) ? root.theme.color02 : "#10b981"
+    readonly property color txColor: (root.theme && root.theme.color01) ? root.theme.color01 : "#f59e0b"
+
     readonly property var wifiIcons: [
         "signal_wifi_0_bar", "network_wifi_1_bar", "network_wifi_2_bar",
         "network_wifi_3_bar", "signal_wifi_4_bar"
@@ -133,14 +136,25 @@ Item {
 
             Row {
                 spacing: 3
-                UiText {
-                    text: I18n.tr("RX")
-                    color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
-                    font.family: root.mono
-                    font.pixelSize: 8
-                    font.weight: Font.DemiBold
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: rxText.implicitWidth + 4
+                    height: rxText.implicitHeight + 1
+                    radius: 2
+                    color: Qt.rgba(rootMod.rxColor.r, rootMod.rxColor.g, rootMod.rxColor.b, 0.18)
+
+                    UiText {
+                        id: rxText
+                        anchors.centerIn: parent
+                        text: I18n.tr("RX")
+                        color: rootMod.rxColor
+                        font.family: root.mono
+                        font.pixelSize: 8
+                        font.weight: Font.Bold
+                    }
                 }
                 UiText {
+                    anchors.verticalCenter: parent.verticalCenter
                     text: rootMod.formatBarRate(rootMod.dlRate)
                     color: rootMod.contentColor
                     font.family: root.mono
@@ -150,14 +164,25 @@ Item {
 
             Row {
                 spacing: 3
-                UiText {
-                    text: I18n.tr("TX")
-                    color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
-                    font.family: root.mono
-                    font.pixelSize: 8
-                    font.weight: Font.DemiBold
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: txText.implicitWidth + 4
+                    height: txText.implicitHeight + 1
+                    radius: 2
+                    color: Qt.rgba(rootMod.txColor.r, rootMod.txColor.g, rootMod.txColor.b, 0.18)
+
+                    UiText {
+                        id: txText
+                        anchors.centerIn: parent
+                        text: I18n.tr("TX")
+                        color: rootMod.txColor
+                        font.family: root.mono
+                        font.pixelSize: 8
+                        font.weight: Font.Bold
+                    }
                 }
                 UiText {
+                    anchors.verticalCenter: parent.verticalCenter
                     text: rootMod.formatBarRate(rootMod.ulRate)
                     color: rootMod.contentColor
                     font.family: root.mono
