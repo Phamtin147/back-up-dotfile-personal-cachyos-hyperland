@@ -67,6 +67,8 @@ hl.config({
 })
 
 -- 3. Touchpad Gestures (Niri-style column scrolling & vertical workspaces)
+-- (3-finger gestures nhường cho macOS-style 3-Finger Drag; 4 ngón dùng để chuyển column / workspace)
+--[[
 hl.gesture({
     fingers = 3,
     direction = "left",
@@ -103,6 +105,7 @@ hl.gesture({
         end
     }
 })
+--]]
 
 hl.gesture({
     fingers = 4,
