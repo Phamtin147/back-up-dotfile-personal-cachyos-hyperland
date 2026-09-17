@@ -31,17 +31,17 @@ Item {
         var value = Math.max(0, Number(bps) || 0)
         if (value >= 1073741824) {
             var gib = value / 1073741824
-            return (gib < 10 ? gib.toFixed(1) : gib.toFixed(0)) + "G"
+            return (gib < 10 ? gib.toFixed(1) : gib.toFixed(0)) + " GB/s"
         }
         if (value >= 1048576) {
             var mib = value / 1048576
-            return (mib < 10 ? mib.toFixed(1) : mib.toFixed(0)) + "M"
+            return (mib < 10 ? mib.toFixed(1) : mib.toFixed(0)) + " MB/s"
         }
         if (value >= 1024) {
             var kib = value / 1024
-            return (kib < 10 ? kib.toFixed(1) : kib.toFixed(0)) + "K"
+            return (kib < 10 ? kib.toFixed(1) : kib.toFixed(0)) + " KB/s"
         }
-        return "0K"
+        return (value > 0 ? Math.round(value) + " B/s" : "0 KB/s")
     }
 
     function trafficLevel(bps) {
@@ -115,66 +115,54 @@ Item {
             font.pixelSize: 11
         }
 
-        Item {
+        UiText {
+            id: ethernetLabel
+            anchors.verticalCenter: parent.verticalCenter
+            visible: rootMod.mode === "ethernet"
+            text: I18n.tr("LAN")
+            color: rootMod.contentColor
+            font.family: root.mono
+            font.pixelSize: 11
+        }
+
+        Column {
             id: trafficMeter
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode !== "none"
-            width: 16
-            height: 20
+            spacing: 1
 
-            readonly property real rxLevel: rootMod.trafficLevel(rootMod.dlRate)
-            readonly property real txLevel: rootMod.trafficLevel(rootMod.ulRate)
-
-            UiText {
-                x: 0; y: 0
-                width: 8; height: 8
-                text: I18n.tr("RX")
-                color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
-                font.family: root.mono
-                font.pixelSize: 7
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-            Column {
-                x: 2; y: 8
-                spacing: 1
-                Repeater {
-                    model: 4
-                    delegate: Rectangle {
-                        required property int index
-                        width: 4; height: 2; radius: 1
-                        color: trafficMeter.rxLevel > index / 4
-                            ? rootMod.contentColor
-                            : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.18)
-                        Behavior on color { ColorAnimation { duration: 160 } }
-                    }
+            Row {
+                spacing: 3
+                UiText {
+                    text: I18n.tr("RX")
+                    color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
+                    font.family: root.mono
+                    font.pixelSize: 8
+                    font.weight: Font.DemiBold
+                }
+                UiText {
+                    text: rootMod.formatBarRate(rootMod.dlRate)
+                    color: rootMod.contentColor
+                    font.family: root.mono
+                    font.pixelSize: 8
                 }
             }
 
-            Column {
-                x: 10; y: 1
-                spacing: 1
-                Repeater {
-                    model: 4
-                    delegate: Rectangle {
-                        required property int index
-                        width: 4; height: 2; radius: 1
-                        color: trafficMeter.txLevel > (3 - index) / 4
-                            ? rootMod.contentColor
-                            : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.18)
-                        Behavior on color { ColorAnimation { duration: 160 } }
-                    }
+            Row {
+                spacing: 3
+                UiText {
+                    text: I18n.tr("TX")
+                    color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
+                    font.family: root.mono
+                    font.pixelSize: 8
+                    font.weight: Font.DemiBold
                 }
-            }
-            UiText {
-                x: 8; y: 13
-                width: 8; height: 8
-                text: I18n.tr("TX")
-                color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
-                font.family: root.mono
-                font.pixelSize: 7
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
+                UiText {
+                    text: rootMod.formatBarRate(rootMod.ulRate)
+                    color: rootMod.contentColor
+                    font.family: root.mono
+                    font.pixelSize: 8
+                }
             }
         }
     }
@@ -183,10 +171,11 @@ Item {
         id: netProc
         command: ["bash", "-c",
             "IFACE=$(ip route get 1.1.1.1 2>/dev/null | awk \x27{for(i=1;i<=NF;i++) if($i==\"dev\"){print $(i+1); exit}}\x27); " +
+            "if [ -z \"$IFACE\" ]; then IFACE=$(ip route show default 2>/dev/null | awk \x27{for(i=1;i<=NF;i++) if($i==\"dev\"){print $(i+1); exit}}\x27); fi; " +
             "if [ -z \"$IFACE\" ]; then echo NONE; exit; fi; " +
-            "RX=$(awk -v i=\"$IFACE:\" \x27$1==i{print $2}\x27 /proc/net/dev 2>/dev/null); " +
-            "TX=$(awk -v i=\"$IFACE:\" \x27$1==i{print $10}\x27 /proc/net/dev 2>/dev/null); " +
-            "if [ -d \"/sys/class/net/$IFACE/wireless\" ]; then " +
+            "RX=$(cat /sys/class/net/$IFACE/statistics/rx_bytes 2>/dev/null || awk -v i=\"$IFACE:\" \x27$1==i{print $2}\x27 /proc/net/dev 2>/dev/null); " +
+            "TX=$(cat /sys/class/net/$IFACE/statistics/tx_bytes 2>/dev/null || awk -v i=\"$IFACE:\" \x27$1==i{print $10}\x27 /proc/net/dev 2>/dev/null); " +
+            "if [ -d \"/sys/class/net/$IFACE/wireless\" ] || [ -d \"/sys/class/net/$IFACE/phy80211\" ]; then " +
             "  LINK=$(iw dev \"$IFACE\" link 2>/dev/null); " +
             "  SSID=$(printf \x27%s\\n\x27 \"$LINK\" | sed -n \x27s/^\\s*SSID: //p\x27 | head -1); " +
             "  if [[ \"$SSID\" =~ \\\\(x[0-9A-Fa-f]{2}|[0-7]{3}) ]]; then SSID=$(printf \x27%b\x27 \"$SSID\"); fi; " +
@@ -221,11 +210,11 @@ Item {
         }
     }
 
-    readonly property bool fastPoll: root.modNetwork || root.networkVisible || mode === "wifi"
+    readonly property bool fastPoll: root.modNetwork || root.networkVisible || mode !== "none"
     onFastPollChanged: if (fastPoll) { netProc.running = false; netProc.running = true }
 
     Timer {
-        interval: rootMod.fastPoll ? 2000 : 60000
+        interval: rootMod.fastPoll ? 1000 : 60000
         running: true; repeat: true; triggeredOnStart: true
         onTriggered: { netProc.running = false; netProc.running = true }
     }
