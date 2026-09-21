@@ -1,0 +1,13 @@
+[Unit]
+Description=Ryoku Edge Drag and Drop Scrolling Daemon
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/home/amtia/.local/bin/ryoku-edge-dnd
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

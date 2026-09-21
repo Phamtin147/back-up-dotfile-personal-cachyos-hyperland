@@ -164,3 +164,7 @@ hl.exec_cmd("/usr/lib/polkit-kde-authentication-agent-1")
 -- Swappy Screenshot Editor UI Rule
 hl.window_rule({ name = "float-swappy", match = { class = "swappy" }, float = true, center = true })
 
+-- Quick Window Cycling (Alt + Tab / Alt + Shift + Tab)
+hl.bind("ALT + Tab", hl.dsp.window.cycle_next())
+hl.bind("ALT + SHIFT + Tab", hl.dsp.window.cycle_next({ prev = true }))
+
