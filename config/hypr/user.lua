@@ -163,3 +163,7 @@ hl.exec_cmd("/usr/lib/polkit-kde-authentication-agent-1")
 
 -- Swappy Screenshot Editor UI Rule
 hl.window_rule({ name = "float-swappy", match = { class = "swappy" }, float = true, center = true })
+
+-- File Manager: Float by default for seamless Drag & Drop to browser / chat apps
+hl.window_rule({ name = "files-float", match = { class = "^(org.gnome.Nautilus|nautilus|nemo|thunar|org.kde.dolphin)$" }, float = true, center = true, size = "1050 680" })
+
