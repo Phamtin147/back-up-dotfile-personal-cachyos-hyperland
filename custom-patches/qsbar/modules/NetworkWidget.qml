@@ -113,6 +113,9 @@ Item {
             color: rootMod.contentColor
             font.family: root.mono
             font.pixelSize: 11
+            elide: Text.ElideRight
+            maximumLineCount: 1
+            width: Math.min(implicitWidth, 105)
         }
 
         UiText {

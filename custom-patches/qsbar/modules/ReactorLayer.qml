@@ -59,6 +59,12 @@ Item {
     function clusterRun(row) {
         if (!row)
             return null
+        if (row.clusterHasVisibleContent !== undefined) {
+            if (!row.clusterHasVisibleContent) return null
+            var xL = Math.min(row.x, row.clusterVisualLeft)
+            var xR = Math.max(row.x + row.width, row.clusterVisualRight)
+            return { x: xL, w: Math.max(1, xR - xL) }
+        }
         var w = Math.max(row.width || 0, row.implicitWidth || 0)
         if (w < 1)
             return null
@@ -94,6 +100,11 @@ Item {
         void (centerRow ? centerRow.x : 0);         void (centerRow ? centerRow.width : 0);         void (centerRow ? centerRow.implicitWidth : 0)
         void (pluginRow ? pluginRow.x : 0);         void (pluginRow ? pluginRow.width : 0);         void (pluginRow ? pluginRow.implicitWidth : 0)
         void (rightRow ? rightRow.x : 0);           void (rightRow ? rightRow.width : 0);           void (rightRow ? rightRow.implicitWidth : 0)
+        void (leftRow && leftRow.clusterVisualRight !== undefined ? leftRow.clusterVisualRight : 0)
+        void (centerRow && centerRow.clusterVisualLeft !== undefined ? centerRow.clusterVisualLeft : 0)
+        void (centerRow && centerRow.clusterVisualRight !== undefined ? centerRow.clusterVisualRight : 0)
+        void (rightRow && rightRow.clusterVisualLeft !== undefined ? rightRow.clusterVisualLeft : 0)
+        void (rightRow && rightRow.clusterVisualRight !== undefined ? rightRow.clusterVisualRight : 0)
         return computeRuns()
     }
 
@@ -104,8 +115,18 @@ Item {
             a.push({ s: i, e: i })
         return a
     }
-    function runRightEdge(i) { return runs[i].x + runs[i].w + (reactor.usePills ? 0 : reactor.gapInset) }
-    function runLeftEdge(i)  { return runs[i].x - (reactor.usePills ? 0 : reactor.gapInset) }
+    function runRightEdge(i) {
+        if (!runs || i < 0 || i >= runs.length) return 0
+        return runs[i].x + runs[i].w + (reactor.usePills ? 0 : 8)
+    }
+    function runLeftEdge(i)  {
+        if (!runs || i < 0 || i >= runs.length) return reactor.width
+        var edge = runs[i].x - (reactor.usePills ? 0 : 8)
+        if (!reactor.usePills && rightRow && i === runs.length - 1) {
+            edge = Math.min(edge, rightRow.x - 8)
+        }
+        return edge
+    }
 
     // Load the stream only while it can actually flow: an animation is selected,
     // the bar is on screen, there is at least one gap between clusters, and motion
