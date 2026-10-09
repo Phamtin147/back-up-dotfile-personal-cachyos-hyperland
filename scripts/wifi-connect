@@ -3,6 +3,136 @@ import curses
 import subprocess
 import os
 import sys
+import json
+
+def hex_to_rgb(hex_str):
+    try:
+        hex_str = hex_str.strip().lstrip("#")
+        if len(hex_str) == 6:
+            return tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
+        elif len(hex_str) == 3:
+            return tuple(int(c * 2, 16) for c in hex_str)
+    except Exception:
+        pass
+    return None
+
+def relative_luminance(r, g, b):
+    def channel_lum(c):
+        c = c / 255.0
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    return 0.2126 * channel_lum(r) + 0.7152 * channel_lum(g) + 0.0722 * channel_lum(b)
+
+def contrast_ratio(rgb1, rgb2):
+    l1 = relative_luminance(*rgb1)
+    l2 = relative_luminance(*rgb2)
+    lighter = max(l1, l2)
+    darker = min(l1, l2)
+    return (lighter + 0.05) / (darker + 0.05)
+
+def get_contrasting_fg(bg_rgb, candidate_fg_rgb=None):
+    if candidate_fg_rgb and contrast_ratio(bg_rgb, candidate_fg_rgb) >= 4.5:
+        return candidate_fg_rgb
+    black = (17, 17, 17)
+    white = (255, 255, 255)
+    return black if contrast_ratio(bg_rgb, black) >= contrast_ratio(bg_rgb, white) else white
+
+def load_system_theme():
+    home = os.path.expanduser("~")
+    for cpath in [os.path.join(home, ".config/noctalia/colors.json"),
+                  os.path.join(home, ".cache/ryoku/colors.json")]:
+        if os.path.isfile(cpath):
+            try:
+                with open(cpath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    bg_hex = data.get("mPrimary")
+                    fg_hex = data.get("mOnPrimary")
+                    if bg_hex:
+                        bg_rgb = hex_to_rgb(bg_hex)
+                        fg_rgb = hex_to_rgb(fg_hex) if fg_hex else None
+                        if bg_rgb:
+                            return bg_rgb, get_contrasting_fg(bg_rgb, fg_rgb)
+            except Exception:
+                pass
+
+    kitty_conf = os.path.join(home, ".config/kitty/kitty.conf")
+    if os.path.isfile(kitty_conf):
+        try:
+            sel_bg, sel_fg, col4 = None, None, None
+            with open(kitty_conf, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("selection_background"):
+                        parts = line.split()
+                        if len(parts) >= 2: sel_bg = hex_to_rgb(parts[1])
+                    elif line.startswith("selection_foreground"):
+                        parts = line.split()
+                        if len(parts) >= 2: sel_fg = hex_to_rgb(parts[1])
+                    elif line.startswith("color4"):
+                        parts = line.split()
+                        if len(parts) >= 2: col4 = hex_to_rgb(parts[1])
+            bg_rgb = sel_bg or col4
+            if bg_rgb:
+                return bg_rgb, get_contrasting_fg(bg_rgb, sel_fg)
+        except Exception:
+            pass
+
+    return (66, 133, 244), (255, 255, 255)
+
+def get_theme_mtime():
+    home = os.path.expanduser("~")
+    paths = [
+        os.path.join(home, ".config/noctalia/colors.json"),
+        os.path.join(home, ".cache/ryoku/colors.json"),
+        os.path.join(home, ".config/kitty/kitty.conf")
+    ]
+    mtimes = []
+    for p in paths:
+        try:
+            mtimes.append(os.path.getmtime(p))
+        except OSError:
+            pass
+    return tuple(mtimes)
+
+def setup_theme_colors():
+    if not curses.has_colors():
+        return
+
+    try:
+        curses.start_color()
+        curses.use_default_colors()
+    except Exception:
+        pass
+
+    bg_rgb, fg_rgb = load_system_theme()
+
+    try:
+        curses.init_pair(2, curses.COLOR_GREEN, -1)   # Active / Connected
+        curses.init_pair(3, curses.COLOR_CYAN, -1)    # Saved
+        curses.init_pair(4, curses.COLOR_YELLOW, -1)  # Enterprise
+        curses.init_pair(5, curses.COLOR_MAGENTA, -1) # Active card tab
+    except Exception:
+        pass
+
+    if curses.can_change_color():
+        try:
+            curses.init_color(20, int(bg_rgb[0] * 1000 / 255),
+                                  int(bg_rgb[1] * 1000 / 255),
+                                  int(bg_rgb[2] * 1000 / 255))
+            curses.init_color(21, int(fg_rgb[0] * 1000 / 255),
+                                  int(fg_rgb[1] * 1000 / 255),
+                                  int(fg_rgb[2] * 1000 / 255))
+            curses.init_pair(1, 21, 20)
+            return
+        except Exception:
+            pass
+
+    try:
+        black = (0, 0, 0)
+        white = (255, 255, 255)
+        ansi_fg = curses.COLOR_BLACK if contrast_ratio(bg_rgb, black) >= contrast_ratio(bg_rgb, white) else curses.COLOR_WHITE
+        curses.init_pair(1, ansi_fg, curses.COLOR_BLUE)
+    except Exception:
+        pass
 
 def safe_curs_set(vis):
     try:
@@ -187,7 +317,7 @@ def draw_input_box(stdscr, title, fields):
             input_w = box_w - 8
             padded_val = display_val.ljust(input_w)
             
-            attr = curses.A_REVERSE if is_active else curses.A_NORMAL
+            attr = (curses.color_pair(1) | curses.A_BOLD) if is_active else curses.A_NORMAL
             safe_addstr(win, y + 1, 3, f"[{padded_val}]", attr)
             
         btn_str = "< OK: Enter >      < Cancel: Esc >"
@@ -334,18 +464,10 @@ def connect_network(stdscr, ifname, net):
 def tui_main(stdscr):
     safe_curs_set(0)
     stdscr.keypad(True)
+    stdscr.timeout(1500)
     
-    if curses.has_colors():
-        try:
-            curses.start_color()
-            curses.use_default_colors()
-            curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLUE)   # Selected row / highlight
-            curses.init_pair(2, curses.COLOR_GREEN, -1)                  # Active / Connected
-            curses.init_pair(3, curses.COLOR_CYAN, -1)                   # Saved
-            curses.init_pair(4, curses.COLOR_YELLOW, -1)                 # Enterprise
-            curses.init_pair(5, curses.COLOR_MAGENTA, -1)                # Active card tab
-        except Exception:
-            pass
+    setup_theme_colors()
+    last_theme_mtime = get_theme_mtime()
     
     devs = get_wifi_devices()
     dev_idx = 0
@@ -359,6 +481,11 @@ def tui_main(stdscr):
         devs = [{"dev": "", "label": "Default Wi-Fi", "short_name": "Wi-Fi", "state": "unknown", "conn": ""}]
 
     while True:
+        curr_theme_mtime = get_theme_mtime()
+        if curr_theme_mtime != last_theme_mtime:
+            setup_theme_colors()
+            last_theme_mtime = curr_theme_mtime
+
         curr_dev = devs[dev_idx]
         curr_ifname = curr_dev["dev"]
         
@@ -449,9 +576,13 @@ def tui_main(stdscr):
         stdscr.refresh()
         
         ch = stdscr.getch()
-        if ch in (ord('q'), ord('Q'), 27):  # Quit
+        if ch == -1:
+            continue
+        elif ch in (ord('q'), ord('Q'), 27):  # Quit
             break
         elif ch in (ord('r'), ord('R')):  # Rescan
+            setup_theme_colors()
+            last_theme_mtime = get_theme_mtime()
             nets = []
             status_msg = "Rescanning..."
         elif ch in (9, ord('c'), ord('C')):  # Tab or 'c' -> Switch Wi-Fi card
