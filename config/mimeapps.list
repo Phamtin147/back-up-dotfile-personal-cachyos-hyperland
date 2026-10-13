@@ -18,6 +18,7 @@ image/jpeg=org.gnome.Loupe.desktop;
 image/png=org.gnome.Loupe.desktop;
 application/pdf=wps-office-pdf.desktop;
 application/x-zerosize=code.desktop;
+x-scheme-handler/ton=org.telegram.desktop.desktop;
 
 [Default Applications]
 application/msword=lowriter-3.desktop;
@@ -89,4 +90,4 @@ text/x-readme=code.desktop
 application/sql=code.desktop
 text/x-sql=code.desktop
 application/x-zerosize=code.desktop
-
+x-scheme-handler/ton=org.telegram.desktop.desktop

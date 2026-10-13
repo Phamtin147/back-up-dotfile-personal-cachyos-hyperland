@@ -332,7 +332,7 @@ def execute_update(pkg_names: list[str]):
         print(f"   {BOLD}{name}{RESET}")
     print()
 
-    cmd = [helper, "-S"] + extra_flags + pkg_names
+    cmd = [helper, "-Sy"] + extra_flags + pkg_names
     os.execvp(helper, cmd)
 
 def main():
@@ -353,7 +353,7 @@ def main():
     if args.update:
         pkg = args.update
         helper, extra_flags = get_update_helper()
-        cmd = [helper, "-S"] + extra_flags + [pkg]
+        cmd = [helper, "-Sy"] + extra_flags + [pkg]
         os.execvp(helper, cmd)
         return
 

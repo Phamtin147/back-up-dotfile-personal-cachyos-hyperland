@@ -341,8 +341,8 @@
     "barGapTop": 0,
     "barPosition": "top",
     "barSeps": [
-      "G2",
       "G1",
+      "G2",
       "G8"
     ],
     "barShadowEnabled": false,

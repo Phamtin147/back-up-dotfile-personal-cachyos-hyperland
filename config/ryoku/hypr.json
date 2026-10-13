@@ -1,10 +1,10 @@
 {
   "appearance": {
     "gapsIn": 4,
-    "gapsOut": 4,
+    "gapsOut": 5,
     "borderSize": 1,
-    "rounding": 0,
-    "roundingPower": 4,
+    "rounding": 16,
+    "roundingPower": 2,
     "activeOpacity": 1,
     "inactiveOpacity": 1,
     "dimInactive": false,
@@ -95,8 +95,8 @@
     "swipeDistance": 300
   },
   "cursor": {
-    "theme": "phinger-cursors-light",
-    "size": 25,
+    "theme": "phinger-cursors-dark",
+    "size": 30,
     "inactiveTimeout": 0,
     "hideOnKeyPress": true
   },

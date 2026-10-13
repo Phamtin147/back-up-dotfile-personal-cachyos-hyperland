@@ -59,182 +59,198 @@ PanelWindow {
         property int itemIndex: 0
 
         width: parent ? parent.width : 0
-        height: 64
+        height: 68
         radius: 8
         color: root.fillIdle
         border.color: containerData.running ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.25) : root.sep
         border.width: 1
 
+        // Status Indicator Dot
+        Rectangle {
+            id: statusDot
+            anchors.left: parent.left
+            anchors.leftMargin: 10
+            anchors.verticalCenter: parent.verticalCenter
+            width: 8
+            height: 8
+            radius: 4
+            color: {
+                if (!containerData.running) return root.sumi
+                if (!containerData.healthy) return root.color03
+                return root.green
+            }
+        }
+
+        // Quick Action Buttons
         Row {
-            anchors.fill: parent
-            anchors.margins: 10
-            spacing: 10
+            id: actionRow
+            anchors.right: parent.right
+            anchors.rightMargin: 10
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 4
 
-            // Status Indicator Dot
+            // Restart Button
             Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 10
-                height: 10
-                radius: 5
-                color: {
-                    if (!containerData.running) return root.sumi
-                    if (!containerData.healthy) return root.color03
-                    return root.green
-                }
-            }
+                width: 26
+                height: 26
+                radius: 6
+                color: restartBtnMa.containsMouse ? root.fillHover : "transparent"
+                border.width: 1
+                border.color: restartBtnMa.containsMouse ? root.seal : root.sep
 
-            // Container Info
-            Column {
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - 20 - 130
-                spacing: 3
-
-                Row {
-                    spacing: 6
-                    width: parent.width
-
-                    UiText {
-                        text: containerData.name
-                        color: root.ink
-                        font.family: root.mono
-                        font.pixelSize: 12
-                        font.weight: Font.Bold
-                        elide: Text.ElideRight
-                    }
-
-                    UiText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "(" + containerData.image + ")"
-                        color: root.sumi
-                        font.family: root.mono
-                        font.pixelSize: 10
-                        elide: Text.ElideRight
-                    }
-                }
-
-                UiText {
-                    text: containerData.status
-                    color: containerData.running ? root.sumiHi : root.sumi
+                Text {
+                    anchors.centerIn: parent
+                    text: "󰑐"
+                    color: root.ink
                     font.family: root.mono
-                    font.pixelSize: 10
-                    elide: Text.ElideRight
+                    font.pixelSize: 12
+                }
+
+                MouseArea {
+                    id: restartBtnMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: dockerPanel.runDockerAction("docker restart " + containerData.name)
                 }
             }
 
-            // Quick Action Buttons
-            Row {
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 4
+            // Logs Button (Terminal)
+            Rectangle {
+                width: 26
+                height: 26
+                radius: 6
+                color: logsBtnMa.containsMouse ? root.fillHover : "transparent"
+                border.width: 1
+                border.color: logsBtnMa.containsMouse ? root.seal : root.sep
 
-                // Restart Button
-                Rectangle {
-                    width: 26
-                    height: 26
-                    radius: 6
-                    color: restartBtnMa.containsMouse ? root.fillHover : "transparent"
-                    border.width: 1
-                    border.color: restartBtnMa.containsMouse ? root.seal : root.sep
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "󰑐"
-                        color: root.ink
-                        font.family: root.mono
-                        font.pixelSize: 12
-                    }
-
-                    MouseArea {
-                        id: restartBtnMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: dockerPanel.runDockerAction("docker restart " + containerData.name)
-                    }
+                Text {
+                    anchors.centerIn: parent
+                    text: "󰌱"
+                    color: root.ink
+                    font.family: root.mono
+                    font.pixelSize: 12
                 }
 
-                // Logs Button (Terminal)
-                Rectangle {
-                    width: 26
-                    height: 26
-                    radius: 6
-                    color: logsBtnMa.containsMouse ? root.fillHover : "transparent"
-                    border.width: 1
-                    border.color: logsBtnMa.containsMouse ? root.seal : root.sep
+                MouseArea {
+                    id: logsBtnMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: dockerPanel.runDockerAction("kitty --title 'Logs: " + containerData.name + "' -e docker logs -f " + containerData.name)
+                }
+            }
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: "󰌱"
-                        color: root.ink
-                        font.family: root.mono
-                        font.pixelSize: 12
-                    }
+            // Shell / Exec Button
+            Rectangle {
+                width: 26
+                height: 26
+                radius: 6
+                color: shellBtnMa.containsMouse ? root.fillHover : "transparent"
+                border.width: 1
+                border.color: shellBtnMa.containsMouse ? root.seal : root.sep
 
-                    MouseArea {
-                        id: logsBtnMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: dockerPanel.runDockerAction("kitty --title 'Logs: " + containerData.name + "' -e docker logs -f " + containerData.name)
-                    }
+                Text {
+                    anchors.centerIn: parent
+                    text: "󰆍"
+                    color: root.ink
+                    font.family: root.mono
+                    font.pixelSize: 12
                 }
 
-                // Shell / Exec Button
-                Rectangle {
-                    width: 26
-                    height: 26
-                    radius: 6
-                    color: shellBtnMa.containsMouse ? root.fillHover : "transparent"
-                    border.width: 1
-                    border.color: shellBtnMa.containsMouse ? root.seal : root.sep
+                MouseArea {
+                    id: shellBtnMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: dockerPanel.runDockerAction("kitty --title 'Shell: " + containerData.name + "' -e docker exec -it " + containerData.name + " sh")
+                }
+            }
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: "󰆍"
-                        color: root.ink
-                        font.family: root.mono
-                        font.pixelSize: 12
-                    }
+            // Stop / Start Button
+            Rectangle {
+                width: 26
+                height: 26
+                radius: 6
+                color: toggleBtnMa.containsMouse ? root.fillHover : "transparent"
+                border.width: 1
+                border.color: toggleBtnMa.containsMouse ? (containerData.running ? root.danger : root.green) : root.sep
 
-                    MouseArea {
-                        id: shellBtnMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: dockerPanel.runDockerAction("kitty --title 'Shell: " + containerData.name + "' -e docker exec -it " + containerData.name + " sh")
-                    }
+                Text {
+                    anchors.centerIn: parent
+                    text: containerData.running ? "󰓛" : "󰐊"
+                    color: containerData.running ? (toggleBtnMa.containsMouse ? root.danger : root.ink) : root.green
+                    font.family: root.mono
+                    font.pixelSize: 12
                 }
 
-                // Stop / Start Button
-                Rectangle {
-                    width: 26
-                    height: 26
-                    radius: 6
-                    color: toggleBtnMa.containsMouse ? root.fillHover : "transparent"
-                    border.width: 1
-                    border.color: toggleBtnMa.containsMouse ? (containerData.running ? root.danger : root.green) : root.sep
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: containerData.running ? "󰓛" : "󰐊"
-                        color: containerData.running ? (toggleBtnMa.containsMouse ? root.danger : root.ink) : root.green
-                        font.family: root.mono
-                        font.pixelSize: 12
-                    }
-
-                    MouseArea {
-                        id: toggleBtnMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (containerData.running)
-                                dockerPanel.runDockerAction("docker stop " + containerData.name)
-                            else
-                                dockerPanel.runDockerAction("docker start " + containerData.name)
-                        }
+                MouseArea {
+                    id: toggleBtnMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (containerData.running)
+                            dockerPanel.runDockerAction("docker stop " + containerData.name)
+                        else
+                            dockerPanel.runDockerAction("docker start " + containerData.name)
                     }
                 }
             }
+        }
+
+        // Container Info
+        Column {
+            id: infoCol
+            anchors.left: statusDot.right
+            anchors.leftMargin: 8
+            anchors.right: actionRow.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 2
+            clip: true
+
+            UiText {
+                width: parent.width
+                text: containerData.name
+                color: root.ink
+                font.family: root.mono
+                font.pixelSize: 11
+                font.weight: Font.Bold
+                elide: Text.ElideRight
+            }
+
+            UiText {
+                width: parent.width
+                text: containerData.image
+                color: root.sumi
+                font.family: root.mono
+                font.pixelSize: 10
+                elide: Text.ElideRight
+            }
+
+            UiText {
+                width: parent.width
+                text: containerData.status
+                color: containerData.running ? root.sumiHi : root.sumi
+                font.family: root.mono
+                font.pixelSize: 10
+                elide: Text.ElideRight
+            }
+        }
+
+        MouseArea {
+            anchors.fill: infoCol
+            hoverEnabled: true
+            onEntered: infoTip.show()
+            onExited: infoTip.hide()
+        }
+
+        TooltipMixin {
+            id: infoTip
+            root: dockerPanel.root
+            owner: infoCol
+            text: containerData.name + "\n" + containerData.image + "\n" + containerData.status
         }
     }
 
@@ -245,8 +261,8 @@ PanelWindow {
 
     Rectangle {
         id: card
-        width: 380
-        height: Math.min(520, col.implicitHeight + 24)
+        width: 420
+        height: Math.min(560, col.implicitHeight + 24)
         radius: reveal > 0.001 ? root.panelRadius : 0
         color: "transparent"
         border.color: root.panelBorder
@@ -472,7 +488,7 @@ PanelWindow {
             // Container List Flickable
             Flickable {
                 width: parent.width
-                height: Math.min(320, containerColumn.implicitHeight)
+                height: Math.min(360, containerColumn.implicitHeight)
                 contentWidth: width
                 contentHeight: containerColumn.implicitHeight
                 clip: true

@@ -1,13 +1,23 @@
 {
-  "blurRadius": 64,
-  "mosaicBlock": 12,
-  "zoomFactor": 2,
+  "blurRadius": 16,
+  "mosaicBlock": 6,
+  "zoomFactor": 1.5,
   "copyOnSave": false,
-  "saveDir": "",
+  "saveDir": "/home/amtia/Pictures/screenshots",
   "toolStyle": {
     "select": {
       "color": "#a2d399",
       "width": 7,
+      "filled": false
+    },
+    "pen": {
+      "color": "#924900",
+      "width": 20,
+      "filled": false
+    },
+    "spotlight": {
+      "color": "#924900",
+      "width": 4,
       "filled": false
     }
   },

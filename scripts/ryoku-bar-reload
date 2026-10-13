@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# ryoku-bar-reload: instantly restart quickshell shell to re-scale and recalculate bar & gap animations
+pkill -f "qs -c shell" 2>/dev/null || true
+echo "Ryoku bar reloaded and gap animation re-aligned."

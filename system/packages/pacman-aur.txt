@@ -9,8 +9,14 @@ nvibrant-bin
 phinger-cursors
 qdirstat
 rtl8851bu-dkms-git
+rustdesk-bin
 spicetify-cli
+telegram-desktop-bin
 ttf-fraunces-variable
+ttf-wps-fonts
 tzupdate
 visual-studio-code-bin
 voxtype-bin
+wps-office
+wps-office-mime
+yay-bin

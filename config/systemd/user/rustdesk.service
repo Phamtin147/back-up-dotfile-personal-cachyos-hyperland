@@ -1,0 +1,14 @@
+[Unit]
+Description=RustDesk User Service
+After=graphical-session.target
+
+[Service]
+Environment=DISPLAY=:0
+Environment=WAYLAND_DISPLAY=wayland-1
+Environment=XDG_CURRENT_DESKTOP=Hyprland
+ExecStart=/usr/bin/rustdesk --server
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target

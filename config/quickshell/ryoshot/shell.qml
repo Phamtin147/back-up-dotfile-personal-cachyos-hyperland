@@ -946,9 +946,7 @@ ShellRoot {
     }
 
     function toolbarFor(win) {
-        if (phase !== "editing" || !globalSel) return { visible: false, x: 0, y: 0 };
-        if (anchorOverlay() !== win) return { visible: false, x: 0, y: 0 };
-        return { visible: true };
+        return { visible: false, x: 0, y: 0 };
     }
 
     /** The staged Escape ladder: the innermost open thing closes first. */

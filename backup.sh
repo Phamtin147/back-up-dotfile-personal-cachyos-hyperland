@@ -81,6 +81,7 @@ CONFIG_ITEMS=(
     "Vial"
     "autostart"
     "systemd"
+    "linux-3-finger-drag"
     "weylus"
     "baloofileinformationrc"
     "dolphinrc"

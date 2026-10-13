@@ -1779,6 +1779,9 @@
         }
     },
     "extensions.ignoreRecommendations": true,
+    "dotnet.projects.enableFileBasedPrograms": false,
+    "dotnet.projects.enableFileBasedProgramsWhenAmbiguous": false,
+    "dotnet.fileBasedApps.enableAutomaticDiscovery": false,
     "dotnet.server.suppressLspErrorToasts": true,
     "dotnet.server.suppressMiscellaneousFilesToasts": true,
     "dotnet.suppressSdkInstallView": true,
@@ -1791,5 +1794,6 @@
     "csharp.suppressHiddenDiagnostics": true,
     "csharp.showOmnisharpLogOnError": false,
     "omnisharp.showLogOnInitialize": false,
-    "omnisharp.autoStart": false
+    "omnisharp.autoStart": false,
+    "explorer.confirmDragAndDrop": false
 }

@@ -44,3 +44,8 @@ config/systemd/user/default.target.wants/
 config/systemd/user/sockets.target.wants/
 config/systemd/user/timers.target.wants/
 
+config/Antigravity/*.db*
+config/Antigravity/Local State
+config/fcitx5/conf/cached_layouts_*
+
+
