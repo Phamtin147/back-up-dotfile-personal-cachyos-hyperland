@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+if [ -t 0 ] && [ -t 1 ]; then
+    exec /home/amtia/.local/bin/bluetooth-connect "$@"
+else
+    exec kitty --title "Bluetooth Manager" -o initial_window_width=85c -o initial_window_height=26c /home/amtia/.local/bin/bluetooth-connect "$@"
+fi

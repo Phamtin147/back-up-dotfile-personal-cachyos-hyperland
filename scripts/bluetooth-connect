@@ -1,0 +1,788 @@
+#!/usr/bin/env python3
+"""
+Bluetooth Connection Manager (TUI)
+Built with curses to match the exact aesthetic, theme, and behavior of wifi-connect.
+Supports automatic theme detection, background scanning, and full authentication agent
+for pairing keyboards (displaying passkeys), headphones, mice, and other devices.
+"""
+
+import curses
+import json
+import os
+import pty
+import re
+import select
+import subprocess
+import sys
+import threading
+import time
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Theme & Color Management (Compatible with Noctalia / Ryoku / Kitty)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def hex_to_rgb(hex_str):
+    try:
+        hex_str = hex_str.strip().lstrip("#")
+        if len(hex_str) == 6:
+            return tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
+        elif len(hex_str) == 3:
+            return tuple(int(c * 2, 16) for c in hex_str)
+    except Exception:
+        pass
+    return None
+
+def relative_luminance(r, g, b):
+    def channel_lum(c):
+        c = c / 255.0
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    return 0.2126 * channel_lum(r) + 0.7152 * channel_lum(g) + 0.0722 * channel_lum(b)
+
+def contrast_ratio(rgb1, rgb2):
+    l1 = relative_luminance(*rgb1)
+    l2 = relative_luminance(*rgb2)
+    lighter = max(l1, l2)
+    darker = min(l1, l2)
+    return (lighter + 0.05) / (darker + 0.05)
+
+def get_contrasting_fg(bg_rgb, candidate_fg_rgb=None):
+    if candidate_fg_rgb and contrast_ratio(bg_rgb, candidate_fg_rgb) >= 4.5:
+        return candidate_fg_rgb
+    black = (17, 17, 17)
+    white = (255, 255, 255)
+    return black if contrast_ratio(bg_rgb, black) >= contrast_ratio(bg_rgb, white) else white
+
+def load_system_theme():
+    home = os.path.expanduser("~")
+    for cpath in [os.path.join(home, ".config/noctalia/colors.json"),
+                  os.path.join(home, ".cache/ryoku/colors.json")]:
+        if os.path.isfile(cpath):
+            try:
+                with open(cpath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    bg_hex = data.get("mPrimary")
+                    fg_hex = data.get("mOnPrimary")
+                    if bg_hex:
+                        bg_rgb = hex_to_rgb(bg_hex)
+                        fg_rgb = hex_to_rgb(fg_hex) if fg_hex else None
+                        if bg_rgb:
+                            return bg_rgb, get_contrasting_fg(bg_rgb, fg_rgb)
+            except Exception:
+                pass
+
+    kitty_conf = os.path.join(home, ".config/kitty/kitty.conf")
+    if os.path.isfile(kitty_conf):
+        try:
+            sel_bg, sel_fg, col4 = None, None, None
+            with open(kitty_conf, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("selection_background"):
+                        parts = line.split()
+                        if len(parts) >= 2: sel_bg = hex_to_rgb(parts[1])
+                    elif line.startswith("selection_foreground"):
+                        parts = line.split()
+                        if len(parts) >= 2: sel_fg = hex_to_rgb(parts[1])
+                    elif line.startswith("color4"):
+                        parts = line.split()
+                        if len(parts) >= 2: col4 = hex_to_rgb(parts[1])
+            bg_rgb = sel_bg or col4
+            if bg_rgb:
+                return bg_rgb, get_contrasting_fg(bg_rgb, sel_fg)
+        except Exception:
+            pass
+
+    return (66, 133, 244), (255, 255, 255)
+
+def get_theme_mtime():
+    home = os.path.expanduser("~")
+    paths = [
+        os.path.join(home, ".config/noctalia/colors.json"),
+        os.path.join(home, ".cache/ryoku/colors.json"),
+        os.path.join(home, ".config/kitty/kitty.conf")
+    ]
+    mtimes = []
+    for p in paths:
+        try:
+            mtimes.append(os.path.getmtime(p))
+        except OSError:
+            pass
+    return tuple(mtimes)
+
+def setup_theme_colors():
+    if not curses.has_colors():
+        return
+
+    try:
+        curses.start_color()
+        curses.use_default_colors()
+    except Exception:
+        pass
+
+    bg_rgb, fg_rgb = load_system_theme()
+
+    try:
+        curses.init_pair(2, curses.COLOR_GREEN, -1)   # Connected
+        curses.init_pair(3, curses.COLOR_CYAN, -1)    # Paired / Saved
+        curses.init_pair(4, curses.COLOR_YELLOW, -1)  # Pairing / Auth alert
+        curses.init_pair(5, curses.COLOR_MAGENTA, -1) # Device type accent
+        curses.init_pair(6, curses.COLOR_RED, -1)     # Error / Off
+    except Exception:
+        pass
+
+    if curses.can_change_color():
+        try:
+            curses.init_color(20, int(bg_rgb[0] * 1000 / 255),
+                                  int(bg_rgb[1] * 1000 / 255),
+                                  int(bg_rgb[2] * 1000 / 255))
+            curses.init_color(21, int(fg_rgb[0] * 1000 / 255),
+                                  int(fg_rgb[1] * 1000 / 255),
+                                  int(fg_rgb[2] * 1000 / 255))
+            curses.init_pair(1, 21, 20)
+            return
+        except Exception:
+            pass
+
+    try:
+        black = (0, 0, 0)
+        white = (255, 255, 255)
+        ansi_fg = curses.COLOR_BLACK if contrast_ratio(bg_rgb, black) >= contrast_ratio(bg_rgb, white) else curses.COLOR_WHITE
+        curses.init_pair(1, ansi_fg, curses.COLOR_BLUE)
+    except Exception:
+        pass
+
+def safe_curs_set(vis):
+    try:
+        curses.curs_set(vis)
+    except Exception:
+        pass
+
+def safe_addstr(win, y, x, text, attr=0):
+    try:
+        max_y, max_x = win.getmaxyx()
+        if y < 0 or y >= max_y or x < 0 or x >= max_x:
+            return
+        avail = max_x - x
+        if y == max_y - 1:
+            avail = max(0, avail - 1)
+        if avail <= 0:
+            return
+        win.addstr(y, x, text[:avail], attr)
+    except Exception:
+        pass
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bluetooth Hardware & Device Management
+# ─────────────────────────────────────────────────────────────────────────────
+
+device_cache = {}
+
+def get_bluetooth_power():
+    try:
+        out = subprocess.check_output(["bluetoothctl", "show"], text=True, stderr=subprocess.DEVNULL)
+        return "Powered: yes" in out
+    except Exception:
+        return False
+
+def toggle_bluetooth_power():
+    curr = get_bluetooth_power()
+    action = "off" if curr else "on"
+    try:
+        subprocess.run(["bluetoothctl", "power", action], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return not curr
+    except Exception:
+        return curr
+
+def get_device_details(mac):
+    if mac in device_cache:
+        return device_cache[mac]
+    icon = ""
+    rssi = None
+    try:
+        out = subprocess.check_output(["bluetoothctl", "info", mac], text=True, stderr=subprocess.DEVNULL)
+        for line in out.splitlines():
+            line = line.strip()
+            if line.startswith("Icon:"):
+                icon = line.split(":", 1)[1].strip()
+            elif line.startswith("RSSI:"):
+                m = re.search(r"\((-?\d+)\)", line)
+                if m:
+                    rssi = int(m.group(1))
+    except Exception:
+        pass
+
+    dtype = "Device"
+    if "keyboard" in icon:
+        dtype = "Keyboard"
+    elif "mouse" in icon:
+        dtype = "Mouse"
+    elif "audio" in icon or "headset" in icon or "headphone" in icon:
+        dtype = "Audio"
+    elif "phone" in icon:
+        dtype = "Phone"
+    elif "gamepad" in icon or "gaming" in icon or "joystick" in icon:
+        dtype = "Gamepad"
+
+    data = {"type": dtype, "icon": icon, "rssi": rssi}
+    device_cache[mac] = data
+    return data
+
+def get_bluetooth_devices():
+    try:
+        raw_out = subprocess.check_output(["bluetoothctl", "devices"], text=True, stderr=subprocess.DEVNULL)
+    except Exception:
+        return []
+
+    try:
+        paired_out = subprocess.check_output(["bluetoothctl", "devices", "Paired"], text=True, stderr=subprocess.DEVNULL)
+    except Exception:
+        paired_out = ""
+
+    try:
+        conn_out = subprocess.check_output(["bluetoothctl", "devices", "Connected"], text=True, stderr=subprocess.DEVNULL)
+    except Exception:
+        conn_out = ""
+
+    paired_macs = set()
+    for line in paired_out.strip().splitlines():
+        parts = line.split(maxsplit=2)
+        if len(parts) >= 2:
+            paired_macs.add(parts[1].upper())
+
+    conn_macs = set()
+    for line in conn_out.strip().splitlines():
+        parts = line.split(maxsplit=2)
+        if len(parts) >= 2:
+            conn_macs.add(parts[1].upper())
+
+    devices = []
+    seen = set()
+    for line in raw_out.strip().splitlines():
+        parts = line.split(maxsplit=2)
+        if len(parts) >= 2:
+            mac = parts[1].upper()
+            if mac in seen:
+                continue
+            seen.add(mac)
+            name = parts[2] if len(parts) > 2 else mac
+            # Check if name is just MAC with dashes
+            if name.replace("-", ":").upper() == mac:
+                name = "Unknown Device"
+
+            is_paired = mac in paired_macs
+            is_conn = mac in conn_macs
+            details = get_device_details(mac)
+
+            devices.append({
+                "mac": mac,
+                "name": name,
+                "paired": is_paired,
+                "connected": is_conn,
+                "type": details["type"],
+                "rssi": details["rssi"]
+            })
+
+    # Sort: Connected first, then Paired, then others by name
+    devices.sort(key=lambda d: (not d["connected"], not d["paired"], d["name"].lower()))
+    return devices
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UI Dialogs & Interaction
+# ─────────────────────────────────────────────────────────────────────────────
+
+def draw_input_box(stdscr, title, fields):
+    safe_curs_set(1)
+    h, w = stdscr.getmaxyx()
+    box_h = len(fields) * 3 + 6
+    box_w = min(64, max(42, w - 4))
+    start_y = max(0, (h - box_h) // 2)
+    start_x = max(0, (w - box_w) // 2)
+
+    win = curses.newwin(box_h, box_w, start_y, start_x)
+    win.keypad(True)
+
+    values = {label: "" for label, _ in fields}
+    cursors = {label: 0 for label, _ in fields}
+    field_idx = 0
+
+    while True:
+        win.clear()
+        win.box()
+        title_str = f" {title} "
+        safe_addstr(win, 0, max(2, (box_w - len(title_str)) // 2), title_str, curses.A_BOLD)
+
+        for idx, (label, is_pw) in enumerate(fields):
+            y = 2 + idx * 3
+            is_active = (idx == field_idx)
+            safe_addstr(win, y, 3, f"{label}:", curses.A_BOLD if is_active else curses.A_NORMAL)
+
+            val = values[label]
+            display_val = ("*" * len(val)) if is_pw else val
+            input_w = box_w - 8
+            padded_val = display_val.ljust(input_w)
+
+            attr = (curses.color_pair(1) | curses.A_BOLD) if is_active else curses.A_NORMAL
+            safe_addstr(win, y + 1, 3, f"[{padded_val}]", attr)
+
+        btn_str = "< OK: Enter >      < Cancel: Esc >"
+        safe_addstr(win, box_h - 2, max(2, (box_w - len(btn_str)) // 2), btn_str)
+
+        curr_label, _ = fields[field_idx]
+        cur_pos = cursors[curr_label]
+        try:
+            win.move(2 + field_idx * 3 + 1, 4 + cur_pos)
+        except Exception:
+            pass
+        win.refresh()
+
+        ch = win.getch()
+        if ch in (27, 3):  # Esc or Ctrl+C
+            safe_curs_set(0)
+            return None
+        elif ch in (curses.KEY_ENTER, 10, 13):
+            if field_idx < len(fields) - 1:
+                field_idx += 1
+            else:
+                safe_curs_set(0)
+                return values
+        elif ch == curses.KEY_UP:
+            field_idx = max(0, field_idx - 1)
+        elif ch in (curses.KEY_DOWN, 9):
+            field_idx = (field_idx + 1) % len(fields)
+        elif ch in (curses.KEY_BACKSPACE, 127, 8):
+            curr_label, _ = fields[field_idx]
+            cur_pos = cursors[curr_label]
+            if cur_pos > 0:
+                values[curr_label] = values[curr_label][:cur_pos-1] + values[curr_label][cur_pos:]
+                cursors[curr_label] -= 1
+        elif ch == curses.KEY_DC:
+            curr_label, _ = fields[field_idx]
+            cur_pos = cursors[curr_label]
+            if cur_pos < len(values[curr_label]):
+                values[curr_label] = values[curr_label][:cur_pos] + values[curr_label][cur_pos+1:]
+        elif ch == curses.KEY_LEFT:
+            curr_label, _ = fields[field_idx]
+            if cursors[curr_label] > 0:
+                cursors[curr_label] -= 1
+        elif ch == curses.KEY_RIGHT:
+            curr_label, _ = fields[field_idx]
+            if cursors[curr_label] < len(values[curr_label]):
+                cursors[curr_label] += 1
+        elif 32 <= ch <= 126:
+            curr_label, _ = fields[field_idx]
+            cur_pos = cursors[curr_label]
+            if len(values[curr_label]) < box_w - 10:
+                values[curr_label] = values[curr_label][:cur_pos] + chr(ch) + values[curr_label][cur_pos:]
+                cursors[curr_label] += 1
+
+def draw_passkey_modal(stdscr, title, dev_name, passkey, hint_text=""):
+    safe_curs_set(0)
+    h, w = stdscr.getmaxyx()
+    box_h = 10
+    box_w = min(68, max(50, w - 4))
+    start_y = max(0, (h - box_h) // 2)
+    start_x = max(0, (w - box_w) // 2)
+
+    win = curses.newwin(box_h, box_w, start_y, start_x)
+    win.box()
+    title_str = f" {title} "
+    safe_addstr(win, 0, max(2, (box_w - len(title_str)) // 2), title_str, curses.color_pair(4) | curses.A_BOLD)
+
+    safe_addstr(win, 2, 3, f"Device: {dev_name}"[:box_w-6], curses.A_BOLD)
+    safe_addstr(win, 3, 3, "Type the following PIN on the keyboard and press Enter:", curses.A_NORMAL)
+
+    formatted_pin = "   ".join(str(passkey))
+    pin_str = f"[  {formatted_pin}  ]"
+    pin_x = max(2, (box_w - len(pin_str)) // 2)
+    safe_addstr(win, 5, pin_x, pin_str, curses.color_pair(1) | curses.A_BOLD)
+
+    if hint_text:
+        safe_addstr(win, 7, max(2, (box_w - len(hint_text)) // 2), hint_text, curses.A_DIM)
+
+    win.refresh()
+    return win
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bluetooth Action Workflows (Connect / Disconnect / Forget / Pair)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def connect_device(mac):
+    res = subprocess.run(["bluetoothctl", "connect", mac], capture_output=True, text=True, timeout=15)
+    return res.returncode == 0, res.stdout or res.stderr
+
+def disconnect_device(mac):
+    res = subprocess.run(["bluetoothctl", "disconnect", mac], capture_output=True, text=True, timeout=10)
+    return res.returncode == 0, res.stdout or res.stderr
+
+def forget_device(mac):
+    res = subprocess.run(["bluetoothctl", "remove", mac], capture_output=True, text=True, timeout=10)
+    if mac in device_cache:
+        del device_cache[mac]
+    return res.returncode == 0, res.stdout or res.stderr
+
+def pair_with_agent(stdscr, mac, name):
+    """
+    Pairs with a device using an interactive PTY session with bluetoothctl.
+    Handles PIN requests, passkey confirmation, and passkey display for keyboards!
+    """
+    safe_curs_set(0)
+    h, w = stdscr.getmaxyx()
+
+    # Make sure adapter is powered & pairable
+    subprocess.run(["bluetoothctl", "power", "on"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["bluetoothctl", "pairable", "on"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    master, slave = pty.openpty()
+    proc = subprocess.Popen(
+        ["bluetoothctl"],
+        stdin=slave, stdout=slave, stderr=slave,
+        close_fds=True, text=False
+    )
+    os.close(slave)
+
+    def send_cmd(cmd_str):
+        try:
+            os.write(master, (cmd_str + "\n").encode())
+        except Exception:
+            pass
+
+    # Register KeyboardDisplay agent to handle passkeys properly
+    time.sleep(0.3)
+    send_cmd("agent KeyboardDisplay")
+    time.sleep(0.2)
+    send_cmd("default-agent")
+    time.sleep(0.2)
+    send_cmd(f"pair {mac}")
+
+    buf = ""
+    start_time = time.time()
+    passkey_shown = False
+
+    while time.time() - start_time < 45:
+        if proc.poll() is not None:
+            break
+
+        r, _, _ = select.select([master], [], [], 0.3)
+        if r:
+            try:
+                data = os.read(master, 1024)
+                if not data:
+                    break
+                text = data.decode("utf-8", errors="replace")
+                buf += text
+            except OSError:
+                break
+
+        # 1. Check for Passkey to be displayed for keyboard entry
+        # e.g.: "[agent] Passkey: 123456" or "Passkey: 123456"
+        pk_match = re.search(r"[Pp]asskey:\s*(\d{4,8})", buf)
+        if pk_match and not passkey_shown:
+            passkey = pk_match.group(1)
+            draw_passkey_modal(stdscr, "KEYBOARD AUTHENTICATION", name, passkey, "Waiting for keyboard input...")
+            passkey_shown = True
+
+        # 2. Check for Passkey confirmation (numeric comparison)
+        # e.g.: "Confirm passkey 123456 (yes/no):"
+        conf_match = re.search(r"Confirm passkey\s*(\d+)\s*\(yes/no\):", buf)
+        if conf_match:
+            p_val = conf_match.group(1)
+            stdscr.clear()
+            stdscr.box()
+            safe_addstr(stdscr, h // 2 - 2, 4, f"Confirm Pairing Code for {name}:", curses.A_BOLD)
+            safe_addstr(stdscr, h // 2, 4, f"Does device display: [ {p_val} ]?", curses.color_pair(4) | curses.A_BOLD)
+            safe_addstr(stdscr, h // 2 + 2, 4, "< Enter: Yes >      < Esc: No >")
+            stdscr.refresh()
+            while True:
+                k = stdscr.getch()
+                if k in (curses.KEY_ENTER, 10, 13, ord('y'), ord('Y')):
+                    send_cmd("yes")
+                    buf = buf[conf_match.end():]
+                    break
+                elif k in (27, ord('n'), ord('N')):
+                    send_cmd("no")
+                    buf = buf[conf_match.end():]
+                    break
+
+        # 3. Check for PIN Code Request (e.g. legacy headset/mouse)
+        if "Enter PIN code:" in buf or "Request PIN code" in buf:
+            pin_res = draw_input_box(stdscr, f"PIN Code for {name}", [("PIN (e.g. 0000)", False)])
+            if pin_res and pin_res["PIN (e.g. 0000)"]:
+                send_cmd(pin_res["PIN (e.g. 0000)"])
+            else:
+                send_cmd("0000")
+            buf = ""
+
+        # 4. Check for success
+        if "Pairing successful" in buf:
+            send_cmd(f"trust {mac}")
+            send_cmd(f"connect {mac}")
+            time.sleep(1.5)
+            send_cmd("quit")
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+            os.close(master)
+            return True, "Pairing & Connection successful!"
+
+        # 5. Check for failure
+        if "Failed to pair:" in buf:
+            err = "Failed to pair"
+            for line in buf.splitlines():
+                if "Failed to pair:" in line:
+                    err = line.strip()
+                    break
+            send_cmd("quit")
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+            os.close(master)
+            return False, err
+
+    send_cmd("quit")
+    try:
+        proc.terminate()
+    except Exception:
+        pass
+    os.close(master)
+    return False, "Pairing timed out. Ensure device is in pairing mode."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Main Application Loop
+# ─────────────────────────────────────────────────────────────────────────────
+
+def tui_main(stdscr, initial_pair_mac=None):
+    safe_curs_set(0)
+    stdscr.keypad(True)
+    stdscr.timeout(1000)
+
+    setup_theme_colors()
+    last_theme_mtime = get_theme_mtime()
+
+    devices = []
+    selected_idx = 0
+    top_idx = 0
+    status_msg = "Ready"
+    scanning = False
+    scan_proc = None
+
+    def trigger_scan():
+        nonlocal scanning, scan_proc
+        if scan_proc is None or scan_proc.poll() is not None:
+            scanning = True
+            scan_proc = subprocess.Popen(
+                ["bluetoothctl", "--timeout", "8", "scan", "on"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+
+    # Initial scan
+    trigger_scan()
+
+    # If --pair MAC was specified, handle direct target
+    target_pair_done = False
+
+    while True:
+        curr_theme_mtime = get_theme_mtime()
+        if curr_theme_mtime != last_theme_mtime:
+            setup_theme_colors()
+            last_theme_mtime = curr_theme_mtime
+
+        # Update scanning status
+        if scan_proc and scan_proc.poll() is not None:
+            scanning = False
+
+        bt_powered = get_bluetooth_power()
+        devices = get_bluetooth_devices()
+
+        if initial_pair_mac and not target_pair_done:
+            for idx, d in enumerate(devices):
+                if d["mac"].upper() == initial_pair_mac.upper():
+                    selected_idx = idx
+                    target_pair_done = True
+                    # Immediately trigger pair flow
+                    ok, msg = pair_with_agent(stdscr, d["mac"], d["name"])
+                    status_msg = msg
+                    devices = get_bluetooth_devices()
+                    break
+
+        h, w = stdscr.getmaxyx()
+        stdscr.clear()
+        stdscr.box()
+
+        # Header Title
+        p_status = "ON" if bt_powered else "OFF"
+        header = f" Bluetooth Manager [Power: {p_status}] "
+        hdr_attr = (curses.color_pair(2) if bt_powered else curses.color_pair(6)) | curses.A_BOLD
+        safe_addstr(stdscr, 0, max(2, (w - len(header)) // 2), header, hdr_attr)
+
+        # Sub-header Bar (Scan indicator & Adapter state)
+        sub_text = "Status: " + ("Scanning for devices… (r to rescan)" if scanning else "Scan idle (r to rescan)")
+        safe_addstr(stdscr, 1, 3, sub_text, curses.A_DIM if not scanning else (curses.color_pair(4) | curses.A_BOLD))
+
+        safe_addstr(stdscr, 2, 1, "─" * (w - 2))
+
+        # Column Headers
+        # Format: STATUS (12) | NAME (dynamic) | TYPE (11) | MAC (18)
+        type_w = 11
+        mac_w = 18
+        name_w = max(16, w - 46)
+        col_hdr = f" {'STATUS':<12} {'DEVICE NAME':<{name_w}} {'TYPE':<{type_w}} {'MAC ADDRESS':<{mac_w}}"
+        safe_addstr(stdscr, 3, 2, col_hdr, curses.A_UNDERLINE | curses.A_BOLD)
+
+        # Device list rows
+        list_start_y = 4
+        max_rows = max(1, h - 8)
+
+        if selected_idx < top_idx:
+            top_idx = selected_idx
+        elif selected_idx >= top_idx + max_rows:
+            top_idx = selected_idx - max_rows + 1
+
+        visible_devs = devices[top_idx:top_idx + max_rows]
+
+        if not bt_powered:
+            safe_addstr(stdscr, list_start_y + 1, 4, "(Bluetooth is Powered OFF. Press 'p' to turn it ON)", curses.color_pair(6) | curses.A_BOLD)
+        elif not visible_devs:
+            safe_addstr(stdscr, list_start_y + 1, 4, "(No Bluetooth devices found. Press 'r' to rescan)", curses.A_DIM)
+
+        for i, dev in enumerate(visible_devs):
+            row_idx = top_idx + i
+            y = list_start_y + i
+            is_sel = (row_idx == selected_idx)
+
+            if dev["connected"]:
+                st_text = "* CONNECTED"
+            elif dev["paired"]:
+                st_text = "[PAIRED]"
+            else:
+                st_text = "Available"
+
+            name_disp = dev["name"][:name_w-1]
+            type_disp = f"[{dev['type']}]"
+            mac_disp = dev["mac"]
+
+            row_str = f" {st_text:<12} {name_disp:<{name_w}} {type_disp:<{type_w}} {mac_disp:<{mac_w}}"
+            row_str = row_str[:w-4].ljust(w-4)
+
+            if is_sel:
+                safe_addstr(stdscr, y, 2, row_str, curses.color_pair(1) | curses.A_BOLD)
+            elif dev["connected"]:
+                safe_addstr(stdscr, y, 2, row_str, curses.color_pair(2) | curses.A_BOLD)
+            elif dev["paired"]:
+                safe_addstr(stdscr, y, 2, row_str, curses.color_pair(3))
+            else:
+                safe_addstr(stdscr, y, 2, row_str)
+
+        # Footer Dividers & Status
+        safe_addstr(stdscr, h - 3, 1, "─" * (w - 2))
+        safe_addstr(stdscr, h - 2, 2, f"Status: {status_msg}"[:w-4])
+
+        hint_str = "<Enter: Connect/Pair>  <d: Disconnect>  <f: Forget>  <p: Power>  <r: Rescan>  <q: Quit>"
+        safe_addstr(stdscr, h - 1, max(2, (w - len(hint_str)) // 2), hint_str[:w-4], curses.A_BOLD)
+        stdscr.refresh()
+
+        ch = stdscr.getch()
+        if ch == -1:
+            continue
+        elif ch in (ord('q'), ord('Q'), 27):  # Quit
+            break
+        elif ch in (ord('p'), ord('P')):  # Toggle Power
+            new_power = toggle_bluetooth_power()
+            status_msg = f"Bluetooth power turned {'ON' if new_power else 'OFF'}."
+            if new_power:
+                trigger_scan()
+        elif ch in (ord('r'), ord('R')):  # Rescan
+            setup_theme_colors()
+            last_theme_mtime = get_theme_mtime()
+            trigger_scan()
+            status_msg = "Scanning for nearby Bluetooth devices…"
+        elif ch in (curses.KEY_UP, ord('k')):
+            if selected_idx > 0:
+                selected_idx -= 1
+        elif ch in (curses.KEY_DOWN, ord('j')):
+            if selected_idx < len(devices) - 1:
+                selected_idx += 1
+        elif ch == curses.KEY_PPAGE:
+            selected_idx = max(0, selected_idx - 10)
+        elif ch == curses.KEY_NPAGE:
+            selected_idx = min(len(devices) - 1, selected_idx + 10)
+        elif ch in (ord('d'), ord('D')):  # Disconnect
+            if 0 <= selected_idx < len(devices):
+                dev = devices[selected_idx]
+                if dev["connected"]:
+                    stdscr.clear()
+                    stdscr.box()
+                    msg = f"Disconnecting '{dev['name']}'..."
+                    safe_addstr(stdscr, h // 2, max(2, (w - len(msg)) // 2), msg, curses.A_BOLD)
+                    stdscr.refresh()
+                    ok, resp = disconnect_device(dev["mac"])
+                    status_msg = f"Disconnected {dev['name']}." if ok else f"Error: {resp[:40]}"
+                else:
+                    status_msg = f"'{dev['name']}' is not connected."
+        elif ch in (ord('f'), ord('F'), curses.KEY_DC):  # Forget / Remove
+            if 0 <= selected_idx < len(devices):
+                dev = devices[selected_idx]
+                stdscr.clear()
+                stdscr.box()
+                msg = f"Removing device '{dev['name']}'..."
+                safe_addstr(stdscr, h // 2, max(2, (w - len(msg)) // 2), msg, curses.A_BOLD)
+                stdscr.refresh()
+                ok, resp = forget_device(dev["mac"])
+                status_msg = f"Removed '{dev['name']}'." if ok else f"Error: {resp[:40]}"
+        elif ch in (curses.KEY_ENTER, 10, 13):
+            if not bt_powered:
+                toggle_bluetooth_power()
+                status_msg = "Bluetooth turned ON."
+                trigger_scan()
+                continue
+
+            if 0 <= selected_idx < len(devices):
+                dev = devices[selected_idx]
+                mac = dev["mac"]
+                name = dev["name"]
+
+                if dev["connected"]:
+                    stdscr.clear()
+                    stdscr.box()
+                    msg = f"Disconnecting '{name}'..."
+                    safe_addstr(stdscr, h // 2, max(2, (w - len(msg)) // 2), msg, curses.A_BOLD)
+                    stdscr.refresh()
+                    ok, resp = disconnect_device(mac)
+                    status_msg = f"Disconnected {name}." if ok else f"Error: {resp[:40]}"
+                elif dev["paired"]:
+                    stdscr.clear()
+                    stdscr.box()
+                    msg = f"Connecting to paired device '{name}'..."
+                    safe_addstr(stdscr, h // 2, max(2, (w - len(msg)) // 2), msg, curses.A_BOLD)
+                    stdscr.refresh()
+                    ok, resp = connect_device(mac)
+                    if ok:
+                        status_msg = f"Connected to {name} successfully!"
+                    else:
+                        status_msg = f"Connect failed. Press Enter to re-pair or check device."
+                else:
+                    # Unpaired device -> Trigger full Agent Pairing workflow
+                    stdscr.clear()
+                    stdscr.box()
+                    msg = f"Initiating pairing with '{name}'..."
+                    safe_addstr(stdscr, h // 2, max(2, (w - len(msg)) // 2), msg, curses.A_BOLD)
+                    stdscr.refresh()
+                    ok, resp = pair_with_agent(stdscr, mac, name)
+                    status_msg = resp
+
+if __name__ == "__main__":
+    target_mac = None
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ("-h", "--help"):
+            print("Usage: bluetooth-connect [--pair <MAC>]")
+            sys.exit(0)
+        elif sys.argv[1] in ("--pair", "-p") and len(sys.argv) > 2:
+            target_mac = sys.argv[2]
+        else:
+            target_mac = sys.argv[1]
+
+    try:
+        curses.wrapper(lambda s: tui_main(s, target_mac))
+    except KeyboardInterrupt:
+        pass

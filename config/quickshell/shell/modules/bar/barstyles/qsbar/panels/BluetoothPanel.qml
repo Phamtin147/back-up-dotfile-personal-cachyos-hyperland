@@ -49,9 +49,7 @@ PanelWindow {
         } else if (device.paired) {
             connCmd = "bluetoothctl connect " + mac
         } else {
-            connCmd = "bluetoothctl trust " + mac
-                + " && bluetoothctl pair " + mac
-                + " && bluetoothctl connect " + mac
+            connCmd = "/home/amtia/.local/bin/bluetooth-menu --pair " + mac
         }
         connProc.running = true
     }

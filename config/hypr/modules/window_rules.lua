@@ -21,4 +21,5 @@ hl.window_rule({ name = "discord-frost", match = { class = "^(discord|Vesktop|ve
 -- Float settings / dialogs
 hl.window_rule({ name = "dialogs-float", match = { class = "^(pavucontrol|org.pulseaudio.pavucontrol|blueman-manager|nm-connection-editor|swappy)$" }, float = true, center = true })
 hl.window_rule({ name = "wifi-float", match = { title = "^(Wi-Fi Manager)$" }, float = true, center = true, size = "700 500" })
+hl.window_rule({ name = "bluetooth-float", match = { title = "^(Bluetooth Manager)$" }, float = true, center = true, size = "750 520" })
 

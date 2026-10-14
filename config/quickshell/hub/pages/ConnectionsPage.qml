@@ -1289,10 +1289,7 @@ Item {
             if (!d || !d.address || pairProc.running)
                 return;
             bt.pairingAddress = d.address;
-            bt.failedAddress = "";
-            pairProc.command = ["sh", "-c",
-                'timeout 30 bluetoothctl pair "$1" && bluetoothctl trust "$1" && timeout 30 bluetoothctl connect "$1"',
-                "sh", d.address];
+            pairProc.command = ["/home/amtia/.local/bin/bluetooth-menu", "--pair", d.address];
             pairProc.running = true;
         }
 
