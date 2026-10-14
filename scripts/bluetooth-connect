@@ -823,7 +823,9 @@ def tui_main(stdscr, initial_pair_mac=None):
                     msg = f"Connecting to paired device '{name}'..."
                     safe_addstr(stdscr, h // 2, max(2, (w - len(msg)) // 2), msg, curses.A_BOLD)
                     stdscr.refresh()
+                    stop_scan()
                     ok, resp = connect_device(mac)
+                    start_scan()
                     if ok:
                         status_msg = f"Connected to {name} successfully!"
                     else:
@@ -855,3 +857,5 @@ if __name__ == "__main__":
         curses.wrapper(lambda s: tui_main(s, target_mac))
     except KeyboardInterrupt:
         pass
+    finally:
+        subprocess.run(["pkill", "-f", "bluetoothctl.*scan on"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
