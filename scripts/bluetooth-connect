@@ -2,7 +2,7 @@
 """
 Bluetooth Connection Manager (TUI)
 Built with curses to match the exact aesthetic, theme, and behavior of wifi-connect.
-Supports automatic theme detection, background scanning, and full authentication agent
+Supports automatic theme detection, continuous background scanning, and full authentication agent
 for pairing keyboards (displaying passkeys), headphones, mice, and other devices.
 """
 
@@ -176,6 +176,8 @@ def safe_addstr(win, y, x, text, attr=0):
 # ─────────────────────────────────────────────────────────────────────────────
 
 device_cache = {}
+live_discovered = {}
+ansi_escape = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
 
 def get_bluetooth_power():
     try:
@@ -231,7 +233,7 @@ def get_bluetooth_devices():
     try:
         raw_out = subprocess.check_output(["bluetoothctl", "devices"], text=True, stderr=subprocess.DEVNULL)
     except Exception:
-        return []
+        raw_out = ""
 
     try:
         paired_out = subprocess.check_output(["bluetoothctl", "devices", "Paired"], text=True, stderr=subprocess.DEVNULL)
@@ -257,18 +259,36 @@ def get_bluetooth_devices():
 
     devices = []
     seen = set()
+
+    # 1. Devices registered in BlueZ
     for line in raw_out.strip().splitlines():
         parts = line.split(maxsplit=2)
         if len(parts) >= 2:
             mac = parts[1].upper()
-            if mac in seen:
-                continue
             seen.add(mac)
             name = parts[2] if len(parts) > 2 else mac
-            # Check if name is just MAC with dashes
-            if name.replace("-", ":").upper() == mac:
-                name = "Unknown Device"
+            # Check if name is placeholder or if live_discovered has a better name
+            if (name.replace("-", ":").upper() == mac or name == "Unknown Device") and mac in live_discovered:
+                if live_discovered[mac] != mac:
+                    name = live_discovered[mac]
 
+            is_paired = mac in paired_macs
+            is_conn = mac in conn_macs
+            details = get_device_details(mac)
+
+            devices.append({
+                "mac": mac,
+                "name": name,
+                "paired": is_paired,
+                "connected": is_conn,
+                "type": details["type"],
+                "rssi": details["rssi"]
+            })
+
+    # 2. Devices discovered via active live stream
+    for mac, name in list(live_discovered.items()):
+        if mac not in seen:
+            seen.add(mac)
             is_paired = mac in paired_macs
             is_conn = mac in conn_macs
             details = get_device_details(mac)
@@ -418,6 +438,8 @@ def forget_device(mac):
     res = subprocess.run(["bluetoothctl", "remove", mac], capture_output=True, text=True, timeout=10)
     if mac in device_cache:
         del device_cache[mac]
+    if mac in live_discovered:
+        del live_discovered[mac]
     return res.returncode == 0, res.stdout or res.stderr
 
 def pair_with_agent(stdscr, mac, name):
@@ -446,7 +468,6 @@ def pair_with_agent(stdscr, mac, name):
         except Exception:
             pass
 
-    # Register KeyboardDisplay agent to handle passkeys properly
     time.sleep(0.3)
     send_cmd("agent KeyboardDisplay")
     time.sleep(0.2)
@@ -474,7 +495,6 @@ def pair_with_agent(stdscr, mac, name):
                 break
 
         # 1. Check for Passkey to be displayed for keyboard entry
-        # e.g.: "[agent] Passkey: 123456" or "Passkey: 123456"
         pk_match = re.search(r"[Pp]asskey:\s*(\d{4,8})", buf)
         if pk_match and not passkey_shown:
             passkey = pk_match.group(1)
@@ -482,7 +502,6 @@ def pair_with_agent(stdscr, mac, name):
             passkey_shown = True
 
         # 2. Check for Passkey confirmation (numeric comparison)
-        # e.g.: "Confirm passkey 123456 (yes/no):"
         conf_match = re.search(r"Confirm passkey\s*(\d+)\s*\(yes/no\):", buf)
         if conf_match:
             p_val = conf_match.group(1)
@@ -503,7 +522,7 @@ def pair_with_agent(stdscr, mac, name):
                     buf = buf[conf_match.end():]
                     break
 
-        # 3. Check for PIN Code Request (e.g. legacy headset/mouse)
+        # 3. Check for PIN Code Request
         if "Enter PIN code:" in buf or "Request PIN code" in buf:
             pin_res = draw_input_box(stdscr, f"PIN Code for {name}", [("PIN (e.g. 0000)", False)])
             if pin_res and pin_res["PIN (e.g. 0000)"]:
@@ -549,6 +568,33 @@ def pair_with_agent(stdscr, mac, name):
     return False, "Pairing timed out. Ensure device is in pairing mode."
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Background Scanner Thread
+# ─────────────────────────────────────────────────────────────────────────────
+
+def scanner_loop(proc):
+    while True:
+        if proc.poll() is not None:
+            break
+        try:
+            line = proc.stdout.readline()
+            if not line:
+                break
+            clean = ansi_escape.sub('', line).strip()
+            m = re.search(r'\[(NEW|CHG)\]\s+Device\s+([0-9A-Fa-f:]{17})\s*(.*)', clean)
+            if m:
+                mac = m.group(2).upper()
+                rest = m.group(3).strip()
+                if "Name:" in rest:
+                    name = rest.split("Name:", 1)[1].strip()
+                    live_discovered[mac] = name
+                elif rest and not any(rest.startswith(x) for x in ("RSSI:", "TxPower:", "ManufacturerData", "ServiceData", "UUIDs:", "Class:")):
+                    live_discovered[mac] = rest
+                elif mac not in live_discovered:
+                    live_discovered[mac] = mac
+        except Exception:
+            break
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main Application Loop
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -574,9 +620,11 @@ def tui_main(stdscr, initial_pair_mac=None):
         if scan_proc is None or scan_proc.poll() is not None:
             scanning = True
             scan_proc = subprocess.Popen(
-                ["bluetoothctl", "scan", "on"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                ["bluetoothctl", "--timeout", "86400", "scan", "on"],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
             )
+            t = threading.Thread(target=scanner_loop, args=(scan_proc,), daemon=True)
+            t.start()
 
     def stop_scan():
         nonlocal scanning, scan_proc
@@ -614,7 +662,6 @@ def tui_main(stdscr, initial_pair_mac=None):
                 if d["mac"].upper() == initial_pair_mac.upper():
                     selected_idx = idx
                     target_pair_done = True
-                    # Immediately trigger pair flow
                     stop_scan()
                     ok, msg = pair_with_agent(stdscr, d["mac"], d["name"])
                     status_msg = msg
@@ -633,13 +680,12 @@ def tui_main(stdscr, initial_pair_mac=None):
         safe_addstr(stdscr, 0, max(2, (w - len(header)) // 2), header, hdr_attr)
 
         # Sub-header Bar (Scan indicator & Adapter state)
-        sub_text = "Status: " + ("Scanning for devices… (r to rescan)" if scanning else "Scan idle (r to rescan)")
+        sub_text = "Status: " + ("Scanning for devices… (Continuous live discovery)" if scanning else "Scan idle (r to rescan)")
         safe_addstr(stdscr, 1, 3, sub_text, curses.A_DIM if not scanning else (curses.color_pair(4) | curses.A_BOLD))
 
         safe_addstr(stdscr, 2, 1, "─" * (w - 2))
 
         # Column Headers
-        # Format: STATUS (12) | NAME (dynamic) | TYPE (11) | MAC (18)
         type_w = 11
         mac_w = 18
         name_w = max(16, w - 46)
@@ -660,7 +706,7 @@ def tui_main(stdscr, initial_pair_mac=None):
         if not bt_powered:
             safe_addstr(stdscr, list_start_y + 1, 4, "(Bluetooth is Powered OFF. Press 'p' to turn it ON)", curses.color_pair(6) | curses.A_BOLD)
         elif not visible_devs:
-            safe_addstr(stdscr, list_start_y + 1, 4, "(No Bluetooth devices found. Press 'r' to rescan)", curses.A_DIM)
+            safe_addstr(stdscr, list_start_y + 1, 4, "(Searching for Bluetooth devices… Put your device in pairing mode)", curses.A_DIM)
 
         for i, dev in enumerate(visible_devs):
             row_idx = top_idx + i
@@ -715,6 +761,7 @@ def tui_main(stdscr, initial_pair_mac=None):
             setup_theme_colors()
             last_theme_mtime = get_theme_mtime()
             stop_scan()
+            live_discovered.clear()
             start_scan()
             status_msg = "Rescanning for nearby Bluetooth devices…"
         elif ch in (curses.KEY_UP, ord('k')):
@@ -754,7 +801,7 @@ def tui_main(stdscr, initial_pair_mac=None):
             if not bt_powered:
                 toggle_bluetooth_power()
                 status_msg = "Bluetooth turned ON."
-                trigger_scan()
+                start_scan()
                 continue
 
             if 0 <= selected_idx < len(devices):
