@@ -567,17 +567,30 @@ def tui_main(stdscr, initial_pair_mac=None):
     scanning = False
     scan_proc = None
 
-    def trigger_scan():
+    def start_scan():
         nonlocal scanning, scan_proc
+        if not get_bluetooth_power():
+            return
         if scan_proc is None or scan_proc.poll() is not None:
             scanning = True
             scan_proc = subprocess.Popen(
-                ["bluetoothctl", "--timeout", "8", "scan", "on"],
+                ["bluetoothctl", "scan", "on"],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
 
-    # Initial scan
-    trigger_scan()
+    def stop_scan():
+        nonlocal scanning, scan_proc
+        if scan_proc:
+            try:
+                scan_proc.terminate()
+                scan_proc.wait(timeout=0.5)
+            except Exception:
+                pass
+            scan_proc = None
+        scanning = False
+
+    # Start continuous discovery
+    start_scan()
 
     # If --pair MAC was specified, handle direct target
     target_pair_done = False
@@ -588,11 +601,12 @@ def tui_main(stdscr, initial_pair_mac=None):
             setup_theme_colors()
             last_theme_mtime = curr_theme_mtime
 
-        # Update scanning status
-        if scan_proc and scan_proc.poll() is not None:
-            scanning = False
-
         bt_powered = get_bluetooth_power()
+        if bt_powered and (scan_proc is None or scan_proc.poll() is not None):
+            start_scan()
+        elif not bt_powered and scan_proc is not None:
+            stop_scan()
+
         devices = get_bluetooth_devices()
 
         if initial_pair_mac and not target_pair_done:
@@ -601,9 +615,11 @@ def tui_main(stdscr, initial_pair_mac=None):
                     selected_idx = idx
                     target_pair_done = True
                     # Immediately trigger pair flow
+                    stop_scan()
                     ok, msg = pair_with_agent(stdscr, d["mac"], d["name"])
                     status_msg = msg
                     devices = get_bluetooth_devices()
+                    start_scan()
                     break
 
         h, w = stdscr.getmaxyx()
@@ -686,17 +702,21 @@ def tui_main(stdscr, initial_pair_mac=None):
         if ch == -1:
             continue
         elif ch in (ord('q'), ord('Q'), 27):  # Quit
+            stop_scan()
             break
         elif ch in (ord('p'), ord('P')):  # Toggle Power
             new_power = toggle_bluetooth_power()
             status_msg = f"Bluetooth power turned {'ON' if new_power else 'OFF'}."
             if new_power:
-                trigger_scan()
+                start_scan()
+            else:
+                stop_scan()
         elif ch in (ord('r'), ord('R')):  # Rescan
             setup_theme_colors()
             last_theme_mtime = get_theme_mtime()
-            trigger_scan()
-            status_msg = "Scanning for nearby Bluetooth devices…"
+            stop_scan()
+            start_scan()
+            status_msg = "Rescanning for nearby Bluetooth devices…"
         elif ch in (curses.KEY_UP, ord('k')):
             if selected_idx > 0:
                 selected_idx -= 1
@@ -768,8 +788,10 @@ def tui_main(stdscr, initial_pair_mac=None):
                     msg = f"Initiating pairing with '{name}'..."
                     safe_addstr(stdscr, h // 2, max(2, (w - len(msg)) // 2), msg, curses.A_BOLD)
                     stdscr.refresh()
+                    stop_scan()
                     ok, resp = pair_with_agent(stdscr, mac, name)
                     status_msg = resp
+                    start_scan()
 
 if __name__ == "__main__":
     target_mac = None
